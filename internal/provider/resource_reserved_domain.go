@@ -25,17 +25,18 @@ var (
 )
 
 type reservedDomainResourceModel struct {
-	ID                          types.String `tfsdk:"id"`
-	Domain                      types.String `tfsdk:"domain"`
-	Region                      types.String `tfsdk:"region"`
-	Description                 types.String `tfsdk:"description"`
-	Metadata                    types.String `tfsdk:"metadata"`
-	CertificateID               types.String `tfsdk:"certificate_id"`
-	CertificateManagementPolicy types.Object `tfsdk:"certificate_management_policy"`
-	CNAMETarget                 types.String `tfsdk:"cname_target"`
-	ACMEChallengeCNAMETarget    types.String `tfsdk:"acme_challenge_cname_target"`
-	URI                         types.String `tfsdk:"uri"`
-	CreatedAt                   types.String `tfsdk:"created_at"`
+	ID                          types.String   `tfsdk:"id"`
+	Domain                      types.String   `tfsdk:"domain"`
+	Region                      types.String   `tfsdk:"region"`
+	Description                 types.String   `tfsdk:"description"`
+	Metadata                    types.String   `tfsdk:"metadata"`
+	CertificateID               types.String   `tfsdk:"certificate_id"`
+	CertificateManagementPolicy types.Object   `tfsdk:"certificate_management_policy"`
+	CNAMETarget                 types.String   `tfsdk:"cname_target"`
+	ACMEChallengeCNAMETarget    types.String   `tfsdk:"acme_challenge_cname_target"`
+	ResolvesTo                  []types.String `tfsdk:"resolves_to"`
+	URI                         types.String   `tfsdk:"uri"`
+	CreatedAt                   types.String   `tfsdk:"created_at"`
 }
 
 type reservedDomainResource struct {
@@ -121,6 +122,11 @@ func (r *reservedDomainResource) Schema(_ context.Context, _ resource.SchemaRequ
 					},
 				},
 			},
+			"resolves_to": schema.ListAttribute{
+				Description: "A list of ngrok point-of-presence shortcodes (or \"global\") that the domain resolves to.",
+				Optional:    true,
+				ElementType: types.StringType,
+			},
 			"cname_target": schema.StringAttribute{
 				Description: "DNS CNAME target for a custom hostname, or null if the reserved domain is a subdomain of an ngrok owned domain (e.g. *.ngrok.app).",
 				Computed:    true,
@@ -185,6 +191,7 @@ func (r *reservedDomainResource) Create(ctx context.Context, req resource.Create
 	}
 	createReq.CertificateID = stringPtrFromFramework(plan.CertificateID)
 	createReq.CertificateManagementPolicy = expandCertPolicy(ctx, plan.CertificateManagementPolicy, &resp.Diagnostics)
+	createReq.ResolvesTo = expandResolvesTo(plan.ResolvesTo)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -246,6 +253,7 @@ func (r *reservedDomainResource) Update(ctx context.Context, req resource.Update
 	}
 	updateReq.CertificateID = stringPtrFromFramework(plan.CertificateID)
 	updateReq.CertificateManagementPolicy = expandCertPolicy(ctx, plan.CertificateManagementPolicy, &resp.Diagnostics)
+	updateReq.ResolvesTo = expandResolvesTo(plan.ResolvesTo)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -306,6 +314,10 @@ func flattenReservedDomain(ctx context.Context, domain *ngrok.ReservedDomain, mo
 
 	model.CertificateID = types.StringValue(flattenRef(domain.Certificate))
 
+	if len(domain.ResolvesTo) > 0 {
+		model.ResolvesTo = flattenResolvesTo(domain.ResolvesTo)
+	}
+
 	// Only populate cert policy if user configured it or it was previously in state
 	if !model.CertificateManagementPolicy.IsNull() && !model.CertificateManagementPolicy.IsUnknown() {
 		model.CertificateManagementPolicy = flattenCertPolicy(ctx, domain.CertificateManagementPolicy, diags)
@@ -354,4 +366,26 @@ func certPolicyAttrTypes() map[string]attr.Type {
 		"authority":        types.StringType,
 		"private_key_type": types.StringType,
 	}
+}
+
+func expandResolvesTo(vals []types.String) []ngrok.ReservedDomainResolvesToEntry {
+	if vals == nil {
+		return nil
+	}
+	entries := make([]ngrok.ReservedDomainResolvesToEntry, len(vals))
+	for i, v := range vals {
+		entries[i] = ngrok.ReservedDomainResolvesToEntry{Value: v.ValueString()}
+	}
+	return entries
+}
+
+func flattenResolvesTo(entries []ngrok.ReservedDomainResolvesToEntry) []types.String {
+	if entries == nil {
+		return nil
+	}
+	result := make([]types.String, len(entries))
+	for i, e := range entries {
+		result[i] = types.StringValue(e.Value)
+	}
+	return result
 }
