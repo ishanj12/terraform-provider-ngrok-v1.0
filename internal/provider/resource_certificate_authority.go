@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -22,17 +23,17 @@ var (
 )
 
 type certificateAuthorityResourceModel struct {
-	ID                types.String   `tfsdk:"id"`
-	URI               types.String   `tfsdk:"uri"`
-	CreatedAt         types.String   `tfsdk:"created_at"`
-	Description       types.String   `tfsdk:"description"`
-	Metadata          types.String   `tfsdk:"metadata"`
-	CAPEM             types.String   `tfsdk:"ca_pem"`
-	SubjectCommonName types.String   `tfsdk:"subject_common_name"`
-	NotBefore         types.String   `tfsdk:"not_before"`
-	NotAfter          types.String   `tfsdk:"not_after"`
-	KeyUsages         []types.String `tfsdk:"key_usages"`
-	ExtendedKeyUsages []types.String `tfsdk:"extended_key_usages"`
+	ID                types.String `tfsdk:"id"`
+	URI               types.String `tfsdk:"uri"`
+	CreatedAt         types.String `tfsdk:"created_at"`
+	Description       types.String `tfsdk:"description"`
+	Metadata          types.String `tfsdk:"metadata"`
+	CAPEM             types.String `tfsdk:"ca_pem"`
+	SubjectCommonName types.String `tfsdk:"subject_common_name"`
+	NotBefore         types.String `tfsdk:"not_before"`
+	NotAfter          types.String `tfsdk:"not_after"`
+	KeyUsages         types.List   `tfsdk:"key_usages"`
+	ExtendedKeyUsages types.List   `tfsdk:"extended_key_usages"`
 }
 
 type certificateAuthorityResource struct {
@@ -170,7 +171,10 @@ func (r *certificateAuthorityResource) Create(ctx context.Context, req resource.
 		return
 	}
 
-	flattenCertificateAuthority(ca, &plan)
+	flattenCertificateAuthority(ctx, ca, &plan, &resp.Diagnostics)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
@@ -191,7 +195,10 @@ func (r *certificateAuthorityResource) Read(ctx context.Context, req resource.Re
 		return
 	}
 
-	flattenCertificateAuthority(ca, &state)
+	flattenCertificateAuthority(ctx, ca, &state, &resp.Diagnostics)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
@@ -220,7 +227,10 @@ func (r *certificateAuthorityResource) Update(ctx context.Context, req resource.
 		return
 	}
 
-	flattenCertificateAuthority(ca, &plan)
+	flattenCertificateAuthority(ctx, ca, &plan, &resp.Diagnostics)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
@@ -244,7 +254,7 @@ func (r *certificateAuthorityResource) ImportState(ctx context.Context, req reso
 	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
 }
 
-func flattenCertificateAuthority(ca *ngrok.CertificateAuthority, model *certificateAuthorityResourceModel) {
+func flattenCertificateAuthority(ctx context.Context, ca *ngrok.CertificateAuthority, model *certificateAuthorityResourceModel, diags *diag.Diagnostics) {
 	model.ID = types.StringValue(ca.ID)
 	model.URI = types.StringValue(ca.URI)
 	model.CreatedAt = types.StringValue(ca.CreatedAt)
@@ -254,6 +264,10 @@ func flattenCertificateAuthority(ca *ngrok.CertificateAuthority, model *certific
 	model.SubjectCommonName = types.StringValue(ca.SubjectCommonName)
 	model.NotBefore = types.StringValue(ca.NotBefore)
 	model.NotAfter = types.StringValue(ca.NotAfter)
-	model.KeyUsages = flattenStringList(ca.KeyUsages)
-	model.ExtendedKeyUsages = flattenStringList(ca.ExtendedKeyUsages)
+	keyUsages, d := types.ListValueFrom(ctx, types.StringType, ca.KeyUsages)
+	diags.Append(d...)
+	model.KeyUsages = keyUsages
+	extKeyUsages, d := types.ListValueFrom(ctx, types.StringType, ca.ExtendedKeyUsages)
+	diags.Append(d...)
+	model.ExtendedKeyUsages = extKeyUsages
 }

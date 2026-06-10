@@ -97,9 +97,6 @@ func (r *secretResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 			"vault_name": schema.StringAttribute{
 				Description: "Human-readable name of the vault that this secret belongs to.",
 				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
 			},
 			"uri": schema.StringAttribute{
 				Description: "URI of the secret API resource.",

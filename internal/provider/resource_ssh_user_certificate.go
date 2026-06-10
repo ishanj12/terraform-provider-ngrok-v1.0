@@ -319,12 +319,8 @@ func flattenSSHUserCertificate(ctx context.Context, cert *ngrok.SSHUserCertifica
 	}
 	if !model.CriticalOptions.IsNull() {
 		model.CriticalOptions = flattenStringMap(ctx, cert.CriticalOptions)
-	} else if len(cert.CriticalOptions) > 0 {
-		model.CriticalOptions = flattenStringMap(ctx, cert.CriticalOptions)
 	}
 	if !model.Extensions.IsNull() {
-		model.Extensions = flattenStringMap(ctx, cert.Extensions)
-	} else if len(cert.Extensions) > 0 {
 		model.Extensions = flattenStringMap(ctx, cert.Extensions)
 	}
 	model.ValidAfter = types.StringValue(cert.ValidAfter)
