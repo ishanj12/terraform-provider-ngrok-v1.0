@@ -1,15 +1,8 @@
 # Binary
 terraform-provider-ngrok
 
-# Terraform
-test-manual/.terraform/
-test-manual/.terraform.lock.hcl
-test-manual/terraform.tfstate
-test-manual/terraform.tfstate.*
-
-# Secrets/certs
-test-manual/*.key
-test-manual/*.crt
+# Test manual
+test-manual/
 
 # OS
 .DS_Store
