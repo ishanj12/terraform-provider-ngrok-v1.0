@@ -268,7 +268,9 @@ func flattenSSHHostCertificate(cert *ngrok.SSHHostCertificate, model *sshHostCer
 	model.PublicKey = types.StringValue(cert.PublicKey)
 	model.KeyType = types.StringValue(cert.KeyType)
 	model.SSHCertificateAuthorityID = types.StringValue(cert.SSHCertificateAuthorityID)
-	if len(cert.Principals) > 0 {
+	if model.Principals != nil {
+		model.Principals = flattenStringList(cert.Principals)
+	} else if len(cert.Principals) > 0 {
 		model.Principals = flattenStringList(cert.Principals)
 	}
 	model.ValidAfter = types.StringValue(cert.ValidAfter)

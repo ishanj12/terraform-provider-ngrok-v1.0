@@ -312,13 +312,19 @@ func flattenSSHUserCertificate(ctx context.Context, cert *ngrok.SSHUserCertifica
 	model.PublicKey = types.StringValue(cert.PublicKey)
 	model.KeyType = types.StringValue(cert.KeyType)
 	model.SSHCertificateAuthorityID = types.StringValue(cert.SSHCertificateAuthorityID)
-	if len(cert.Principals) > 0 {
+	if model.Principals != nil {
+		model.Principals = flattenStringList(cert.Principals)
+	} else if len(cert.Principals) > 0 {
 		model.Principals = flattenStringList(cert.Principals)
 	}
-	if len(cert.CriticalOptions) > 0 {
+	if !model.CriticalOptions.IsNull() {
+		model.CriticalOptions = flattenStringMap(ctx, cert.CriticalOptions)
+	} else if len(cert.CriticalOptions) > 0 {
 		model.CriticalOptions = flattenStringMap(ctx, cert.CriticalOptions)
 	}
-	if len(cert.Extensions) > 0 {
+	if !model.Extensions.IsNull() {
+		model.Extensions = flattenStringMap(ctx, cert.Extensions)
+	} else if len(cert.Extensions) > 0 {
 		model.Extensions = flattenStringMap(ctx, cert.Extensions)
 	}
 	model.ValidAfter = types.StringValue(cert.ValidAfter)

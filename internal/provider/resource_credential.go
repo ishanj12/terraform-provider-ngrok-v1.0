@@ -233,9 +233,12 @@ func flattenCredential(cred *ngrok.Credential, model *credentialResourceModel) {
 	model.Description = types.StringValue(cred.Description)
 	model.Metadata = types.StringValue(cred.Metadata)
 
-	// Only set ACL if the user configured it (non-nil model) or the API returned a non-empty list.
-	// The API returns [] even when ACL was not set, which would conflict with null in state.
-	if len(cred.ACL) > 0 {
+	// Preserve null vs empty distinction for ACL:
+	// - If model.ACL is nil (user never configured it), only populate if API returned non-empty
+	// - If model.ACL is non-nil (user configured it, even as []), always update from API
+	if model.ACL != nil {
+		model.ACL = flattenStringList(cred.ACL)
+	} else if len(cred.ACL) > 0 {
 		model.ACL = flattenStringList(cred.ACL)
 	}
 
