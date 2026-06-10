@@ -314,7 +314,7 @@ func flattenReservedDomain(ctx context.Context, domain *ngrok.ReservedDomain, mo
 
 	model.CertificateID = types.StringValue(flattenRef(domain.Certificate))
 
-	if len(domain.ResolvesTo) > 0 {
+	if model.ResolvesTo != nil {
 		model.ResolvesTo = flattenResolvesTo(domain.ResolvesTo)
 	}
 
