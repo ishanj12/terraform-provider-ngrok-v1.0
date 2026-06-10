@@ -16,17 +16,18 @@ import (
 var _ datasource.DataSource = &reservedDomainDataSource{}
 
 type reservedDomainDataSourceModel struct {
-	ID                          types.String `tfsdk:"id"`
-	Domain                      types.String `tfsdk:"domain"`
-	Region                      types.String `tfsdk:"region"`
-	Description                 types.String `tfsdk:"description"`
-	Metadata                    types.String `tfsdk:"metadata"`
-	CertificateID               types.String `tfsdk:"certificate_id"`
-	CertificateManagementPolicy types.Object `tfsdk:"certificate_management_policy"`
-	CNAMETarget                 types.String `tfsdk:"cname_target"`
-	ACMEChallengeCNAMETarget    types.String `tfsdk:"acme_challenge_cname_target"`
-	URI                         types.String `tfsdk:"uri"`
-	CreatedAt                   types.String `tfsdk:"created_at"`
+	ID                          types.String   `tfsdk:"id"`
+	Domain                      types.String   `tfsdk:"domain"`
+	Region                      types.String   `tfsdk:"region"`
+	Description                 types.String   `tfsdk:"description"`
+	Metadata                    types.String   `tfsdk:"metadata"`
+	CertificateID               types.String   `tfsdk:"certificate_id"`
+	CertificateManagementPolicy types.Object   `tfsdk:"certificate_management_policy"`
+	CNAMETarget                 types.String   `tfsdk:"cname_target"`
+	ACMEChallengeCNAMETarget    types.String   `tfsdk:"acme_challenge_cname_target"`
+	ResolvesTo                  []types.String `tfsdk:"resolves_to"`
+	URI                         types.String   `tfsdk:"uri"`
+	CreatedAt                   types.String   `tfsdk:"created_at"`
 }
 
 type reservedDomainDataSource struct {
@@ -84,6 +85,11 @@ func (d *reservedDomainDataSource) Schema(_ context.Context, _ datasource.Schema
 						Computed:    true,
 					},
 				},
+			},
+			"resolves_to": schema.ListAttribute{
+				Description: "A list of ngrok point-of-presence shortcodes (or \"global\") that the domain resolves to.",
+				Computed:    true,
+				ElementType: types.StringType,
 			},
 			"cname_target": schema.StringAttribute{
 				Description: "DNS CNAME target for a custom hostname.",
@@ -207,6 +213,7 @@ func flattenReservedDomainDataSource(ctx context.Context, domain *ngrok.Reserved
 	}
 
 	model.CertificateID = types.StringValue(flattenRef(domain.Certificate))
+	model.ResolvesTo = flattenResolvesTo(domain.ResolvesTo)
 
 	model.CertificateManagementPolicy = flattenCertPolicy(ctx, domain.CertificateManagementPolicy, diags)
 }
