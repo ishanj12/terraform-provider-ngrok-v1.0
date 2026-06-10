@@ -693,8 +693,12 @@ func flattenEventDestination(ctx context.Context, dest *ngrok.EventDestination, 
 	model.Format = types.StringValue(dest.Format)
 	model.URI = types.StringValue(dest.URI)
 	model.CreatedAt = types.StringValue(dest.CreatedAt)
-	// Preserve target from plan/state. The target is entirely user-configured
-	// (no computed sub-fields) and the API redacts sensitive fields (api_key,
-	// aws_secret_access_key, client_secret), so using the API response would
-	// always cause inconsistencies. Keep the user's configured values.
+	// For normal CRUD, preserve target from plan/state since the API redacts
+	// sensitive fields (api_key, aws_secret_access_key, client_secret).
+	// For import (model.Target is unknown/null), flatten from the API so
+	// state is populated — sensitive fields will be redacted but at least
+	// the non-sensitive structure is present.
+	if model.Target.IsNull() || model.Target.IsUnknown() {
+		model.Target = flattenEventTarget(ctx, dest.Target, model.Target, diags)
+	}
 }
