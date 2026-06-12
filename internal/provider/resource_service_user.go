@@ -7,13 +7,11 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
 	ngrok "github.com/ngrok/ngrok-api-go/v9"
 	"github.com/ngrok/ngrok-api-go/v9/bot_users"
+	"github.com/ngrok/terraform-provider-ngrok/v2/internal/resource_service_user"
 )
 
 var (
@@ -41,43 +39,25 @@ func (r *serviceUserResource) Metadata(_ context.Context, req resource.MetadataR
 	resp.TypeName = req.ProviderTypeName + "_service_user"
 }
 
-func (r *serviceUserResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
-	resp.Schema = schema.Schema{
-		Description: "Service Users are used to authenticate machine-to-machine communication with the ngrok API.",
-		Attributes: map[string]schema.Attribute{
-			"id": schema.StringAttribute{
-				Description: "Unique service user resource identifier.",
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"name": schema.StringAttribute{
-				Description: "Human-readable name used to identify the service user.",
-				Required:    true,
-			},
-			"active": schema.BoolAttribute{
-				Description: "Whether or not the service user is active.",
-				Optional:    true,
-				Computed:    true,
-				Default:     booldefault.StaticBool(true),
-			},
-			"uri": schema.StringAttribute{
-				Description: "URI of the service user API resource.",
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"created_at": schema.StringAttribute{
-				Description: "Timestamp when the service user was created, RFC 3339 format.",
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-		},
+func (r *serviceUserResource) Schema(ctx context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
+	s := resource_service_user.ServiceUserResourceSchema(ctx)
+	attrs := s.Attributes
+
+	// The generated schema has name as Optional+Computed; override to Required.
+	if a, ok := attrs["name"]; ok {
+		sa := a.(schema.StringAttribute)
+		sa.Required = true
+		sa.Optional = false
+		sa.Computed = false
+		attrs["name"] = sa
 	}
+
+	addStringPlanModifiers(attrs, "id", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "uri", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "created_at", useStateForUnknownString())
+	setBoolDefault(attrs, "active", true)
+
+	resp.Schema = s
 }
 
 func (r *serviceUserResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {

@@ -8,8 +8,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
@@ -17,6 +15,7 @@ import (
 
 	ngrok "github.com/ngrok/ngrok-api-go/v9"
 	"github.com/ngrok/ngrok-api-go/v9/endpoints"
+	"github.com/ngrok/terraform-provider-ngrok/v2/internal/resource_cloud_endpoint"
 )
 
 var (
@@ -53,106 +52,65 @@ func (r *cloudEndpointResource) Metadata(_ context.Context, req resource.Metadat
 	resp.TypeName = req.ProviderTypeName + "_cloud_endpoint"
 }
 
-func (r *cloudEndpointResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
-	resp.Schema = schema.Schema{
-		Description: "Cloud Endpoints are endpoints that are created and managed by the ngrok cloud. They can be used to route traffic to your services using traffic policies.",
-		Attributes: map[string]schema.Attribute{
-			"id": schema.StringAttribute{
-				Description: "Unique endpoint resource identifier.",
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"url": schema.StringAttribute{
-				Description: "The URL of the endpoint.",
-				Required:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.RequiresReplace(),
-				},
-			},
-			"type": schema.StringAttribute{
-				Description: "The type of endpoint. Always \"cloud\" for cloud endpoints.",
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"traffic_policy": schema.StringAttribute{
-				Description: "The traffic policy attached to this endpoint. Must be valid JSON.",
-				Required:    true,
-				Validators: []validator.String{
-					JSONSyntax(),
-				},
-			},
-			"description": schema.StringAttribute{
-				Description: "Human-readable description of this cloud endpoint.",
-				Optional:    true,
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"metadata": schema.StringAttribute{
-				Description: "Arbitrary user-defined machine-readable data of this cloud endpoint. Optional, max 4096 bytes.",
-				Optional:    true,
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"bindings": schema.ListAttribute{
-				Description: "The bindings associated with this endpoint. Defaults to [\"public\"].",
-				Optional:    true,
-				Computed:    true,
-				ElementType: types.StringType,
-				Default: listdefault.StaticValue(
-					types.ListValueMust(types.StringType, []attr.Value{types.StringValue("public")}),
-				),
-			},
-			"pooling_enabled": schema.BoolAttribute{
-				Description: "Whether the endpoint allows connection pooling.",
-				Optional:    true,
-				Computed:    true,
-				Default:     booldefault.StaticBool(false),
-			},
-			"domain_id": schema.StringAttribute{
-				Description: "ID of the domain reserved for this endpoint.",
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"region": schema.StringAttribute{
-				Description: "Region of the endpoint.",
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"uri": schema.StringAttribute{
-				Description: "URI of the cloud endpoint API resource.",
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"created_at": schema.StringAttribute{
-				Description: "Timestamp when the endpoint was created, RFC 3339 format.",
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"updated_at": schema.StringAttribute{
-				Description: "Timestamp when the endpoint was last updated, RFC 3339 format.",
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-		},
+func (r *cloudEndpointResource) Schema(ctx context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
+	s := resource_cloud_endpoint.CloudEndpointResourceSchema(ctx)
+	attrs := s.Attributes
+
+	// Delete Ref nested object fields not used by the hand-written model
+	delete(attrs, "domain")
+	delete(attrs, "edge")
+	delete(attrs, "tunnel")
+	delete(attrs, "tunnel_session")
+	delete(attrs, "tcp_addr")
+	delete(attrs, "principal")
+
+	// Delete other non-TF fields
+	delete(attrs, "host")
+	delete(attrs, "hostport")
+	delete(attrs, "port")
+	delete(attrs, "public_url")
+	delete(attrs, "scheme")
+	delete(attrs, "upstream_protocol")
+	delete(attrs, "upstream_url")
+	delete(attrs, "name")
+	delete(attrs, "proto")
+
+	// Add domain_id (flat string instead of nested Ref)
+	attrs["domain_id"] = schema.StringAttribute{
+		Description: "ID of the domain reserved for this endpoint.",
+		Computed:    true,
 	}
+
+	// Override type to be Computed only (generated has it as Required)
+	attrs["type"] = schema.StringAttribute{
+		Description: "The type of endpoint. Always \"cloud\" for cloud endpoints.",
+		Computed:    true,
+		PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
+	}
+
+	// Add JSON syntax validator to traffic_policy
+	if a, ok := attrs["traffic_policy"]; ok {
+		sa := a.(schema.StringAttribute)
+		sa.Validators = []validator.String{JSONSyntax()}
+		attrs["traffic_policy"] = sa
+	}
+
+	// Plan modifiers
+	addStringPlanModifiers(attrs, "id", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "domain_id", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "region", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "uri", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "created_at", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "updated_at", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "url", requiresReplaceString())
+	addStringPlanModifiers(attrs, "description", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "metadata", useStateForUnknownString())
+
+	// Defaults
+	setListDefault(attrs, "bindings", types.ListValueMust(types.StringType, []attr.Value{types.StringValue("public")}))
+	setBoolDefault(attrs, "pooling_enabled", false)
+
+	resp.Schema = s
 }
 
 func (r *cloudEndpointResource) ModifyPlan(ctx context.Context, req resource.ModifyPlanRequest, resp *resource.ModifyPlanResponse) {

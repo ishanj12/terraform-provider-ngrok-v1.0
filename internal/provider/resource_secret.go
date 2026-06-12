@@ -7,12 +7,11 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
 	ngrok "github.com/ngrok/ngrok-api-go/v9"
 	"github.com/ngrok/ngrok-api-go/v9/secrets"
+	"github.com/ngrok/terraform-provider-ngrok/v2/internal/resource_secret"
 )
 
 var (
@@ -48,93 +47,65 @@ func (r *secretResource) Metadata(_ context.Context, req resource.MetadataReques
 	resp.TypeName = req.ProviderTypeName + "_secret"
 }
 
-func (r *secretResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
-	resp.Schema = schema.Schema{
-		Description: "Secrets are sensitive values stored in a vault.",
-		Attributes: map[string]schema.Attribute{
-			"id": schema.StringAttribute{
-				Description: "Unique secret resource identifier.",
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"name": schema.StringAttribute{
-				Description: "Human-readable name of the secret.",
-				Required:    true,
-			},
-			"value": schema.StringAttribute{
-				Description: "The sensitive value of the secret. Write-only: the API does not return this field.",
-				Required:    true,
-				Sensitive:   true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"vault_id": schema.StringAttribute{
-				Description: "ID of the vault that this secret belongs to.",
-				Required:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.RequiresReplace(),
-				},
-			},
-			"description": schema.StringAttribute{
-				Description: "Human-readable description of what this secret is used for.",
-				Optional:    true,
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"metadata": schema.StringAttribute{
-				Description: "Arbitrary user-defined machine-readable data of this secret. Optional, max 4096 bytes.",
-				Optional:    true,
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"vault_name": schema.StringAttribute{
-				Description: "Human-readable name of the vault that this secret belongs to.",
-				Computed:    true,
-			},
-			"uri": schema.StringAttribute{
-				Description: "URI of the secret API resource.",
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"created_at": schema.StringAttribute{
-				Description: "Timestamp when the secret was created, RFC 3339 format.",
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"updated_at": schema.StringAttribute{
-				Description: "Timestamp when the secret was last updated, RFC 3339 format.",
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"created_by_id": schema.StringAttribute{
-				Description: "The ID of the user or bot that created the secret.",
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"last_updated_by_id": schema.StringAttribute{
-				Description: "The ID of the user or bot that last updated the secret.",
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-		},
+func (r *secretResource) Schema(ctx context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
+	s := resource_secret.SecretResourceSchema(ctx)
+	attrs := s.Attributes
+
+	// Remove Ref-type nested objects that don't match hand-written model
+	delete(attrs, "vault")
+	delete(attrs, "created_by")
+	delete(attrs, "last_updated_by")
+
+	// Make name Required (generated has it as Optional+Computed)
+	if a, ok := attrs["name"]; ok {
+		sa := a.(schema.StringAttribute)
+		sa.Required = true
+		sa.Optional = false
+		sa.Computed = false
+		attrs["name"] = sa
 	}
+
+	// Make value Required + Sensitive (generated has it as Optional+Computed)
+	if a, ok := attrs["value"]; ok {
+		sa := a.(schema.StringAttribute)
+		sa.Required = true
+		sa.Optional = false
+		sa.Computed = false
+		attrs["value"] = sa
+	}
+	addStringPlanModifiers(attrs, "value", useStateForUnknownString())
+	markSensitive(attrs, "value")
+
+	// Make vault_id Required with RequiresReplace (generated has it as Optional+Computed)
+	if a, ok := attrs["vault_id"]; ok {
+		sa := a.(schema.StringAttribute)
+		sa.Required = true
+		sa.Optional = false
+		sa.Computed = false
+		attrs["vault_id"] = sa
+	}
+	addStringPlanModifiers(attrs, "vault_id", requiresReplaceString())
+
+	// Add hand-written fields not in generated schema
+	attrs["created_by_id"] = schema.StringAttribute{
+		Description: "The ID of the user or bot that created the secret.",
+		Computed:    true,
+	}
+	attrs["last_updated_by_id"] = schema.StringAttribute{
+		Description: "The ID of the user or bot that last updated the secret.",
+		Computed:    true,
+	}
+
+	addStringPlanModifiers(attrs, "id", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "uri", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "created_at", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "updated_at", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "description", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "metadata", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "created_by_id", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "last_updated_by_id", useStateForUnknownString())
+
+	resp.Schema = s
 }
 
 func (r *secretResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {

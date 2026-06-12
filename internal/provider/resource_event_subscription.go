@@ -9,12 +9,11 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
 	ngrok "github.com/ngrok/ngrok-api-go/v9"
 	"github.com/ngrok/ngrok-api-go/v9/event_subscriptions"
+	"github.com/ngrok/terraform-provider-ngrok/v2/internal/resource_event_subscription"
 )
 
 var (
@@ -44,70 +43,32 @@ func (r *eventSubscriptionResource) Metadata(_ context.Context, req resource.Met
 	resp.TypeName = req.ProviderTypeName + "_event_subscription"
 }
 
-func (r *eventSubscriptionResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
-	resp.Schema = schema.Schema{
-		Description: "Event Subscriptions allow you to subscribe to events and send them to Event Destinations.",
-		Attributes: map[string]schema.Attribute{
-			"id": schema.StringAttribute{
-				Description: "Unique event subscription resource identifier.",
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"description": schema.StringAttribute{
-				Description: "Arbitrary customer supplied information intended to be human readable. Optional, max 255 chars.",
-				Optional:    true,
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"metadata": schema.StringAttribute{
-				Description: "Arbitrary customer supplied information intended to be machine readable. Optional, max 4096 chars.",
-				Optional:    true,
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"sources": schema.ListNestedAttribute{
-				Description: "Sources containing the types for which this event subscription will trigger.",
-				Required:    true,
-				NestedObject: schema.NestedAttributeObject{
-					Attributes: map[string]schema.Attribute{
-						"type": schema.StringAttribute{
-							Description: "Type of event for which an event subscription will trigger.",
-							Required:    true,
-						},
-						"uri": schema.StringAttribute{
-							Description: "URI of the Event Source API resource.",
-							Computed:    true,
-						},
-					},
-				},
-			},
-			"destination_ids": schema.ListAttribute{
-				Description: "A list of Event Destination IDs which should be used for this Event Subscription.",
-				Required:    true,
-				ElementType: types.StringType,
-			},
-			"uri": schema.StringAttribute{
-				Description: "URI of the Event Subscription API resource.",
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"created_at": schema.StringAttribute{
-				Description: "Timestamp when the Event Subscription was created, RFC 3339 format.",
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
+func (r *eventSubscriptionResource) Schema(ctx context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
+	s := resource_event_subscription.EventSubscriptionResourceSchema(ctx)
+	attrs := s.Attributes
+
+	// Remove Ref nested objects not in hand-written model
+	delete(attrs, "destinations")
+
+	// Replace generated CustomType sources with standard ListNestedAttribute
+	attrs["sources"] = schema.ListNestedAttribute{
+		Description: "Sources containing the types for which this event subscription will trigger.",
+		Required:    true,
+		NestedObject: schema.NestedAttributeObject{
+			Attributes: map[string]schema.Attribute{
+				"type": schema.StringAttribute{Description: "Type of event for which an event subscription will trigger.", Required: true},
+				"uri":  schema.StringAttribute{Description: "URI of the Event Source API resource.", Computed: true},
 			},
 		},
 	}
+
+	addStringPlanModifiers(attrs, "id", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "uri", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "created_at", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "description", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "metadata", useStateForUnknownString())
+
+	resp.Schema = s
 }
 
 func (r *eventSubscriptionResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {

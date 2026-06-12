@@ -7,14 +7,11 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
 	ngrok "github.com/ngrok/ngrok-api-go/v9"
 	"github.com/ngrok/ngrok-api-go/v9/certificate_authorities"
+	"github.com/ngrok/terraform-provider-ngrok/v2/internal/resource_certificate_authority"
 )
 
 var (
@@ -48,93 +45,23 @@ func (r *certificateAuthorityResource) Metadata(_ context.Context, req resource.
 	resp.TypeName = req.ProviderTypeName + "_certificate_authority"
 }
 
-func (r *certificateAuthorityResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
-	resp.Schema = schema.Schema{
-		Description: "Certificate Authorities are x509 certificates that are used to sign other x509 certificates. Attach a Certificate Authority to the Mutual TLS module to verify that the TLS certificate presented by a client has been signed by this CA.",
-		Attributes: map[string]schema.Attribute{
-			"id": schema.StringAttribute{
-				Description: "Unique identifier for this Certificate Authority.",
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"uri": schema.StringAttribute{
-				Description: "URI of the Certificate Authority API resource.",
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"created_at": schema.StringAttribute{
-				Description: "Timestamp when the Certificate Authority was created, RFC 3339 format.",
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"description": schema.StringAttribute{
-				Description: "Human-readable description of this Certificate Authority. Optional, max 255 bytes.",
-				Optional:    true,
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"metadata": schema.StringAttribute{
-				Description: "Arbitrary user-defined machine-readable data of this Certificate Authority. Optional, max 4096 bytes.",
-				Optional:    true,
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"ca_pem": schema.StringAttribute{
-				Description: "Raw PEM of the Certificate Authority.",
-				Required:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.RequiresReplace(),
-				},
-			},
-			"subject_common_name": schema.StringAttribute{
-				Description: "Subject common name of the Certificate Authority.",
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"not_before": schema.StringAttribute{
-				Description: "Timestamp when this Certificate Authority becomes valid, RFC 3339 format.",
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"not_after": schema.StringAttribute{
-				Description: "Timestamp when this Certificate Authority becomes invalid, RFC 3339 format.",
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"key_usages": schema.ListAttribute{
-				Description: "Set of actions the private key of this Certificate Authority can be used for.",
-				Computed:    true,
-				ElementType: types.StringType,
-				PlanModifiers: []planmodifier.List{
-					listplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"extended_key_usages": schema.ListAttribute{
-				Description: "Extended set of actions the private key of this Certificate Authority can be used for.",
-				Computed:    true,
-				ElementType: types.StringType,
-				PlanModifiers: []planmodifier.List{
-					listplanmodifier.UseStateForUnknown(),
-				},
-			},
-		},
-	}
+func (r *certificateAuthorityResource) Schema(ctx context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
+	s := resource_certificate_authority.CertificateAuthorityResourceSchema(ctx)
+	attrs := s.Attributes
+
+	addStringPlanModifiers(attrs, "id", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "uri", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "created_at", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "description", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "metadata", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "ca_pem", requiresReplaceString())
+	addStringPlanModifiers(attrs, "subject_common_name", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "not_before", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "not_after", useStateForUnknownString())
+	addListPlanModifiers(attrs, "key_usages", useStateForUnknownList())
+	addListPlanModifiers(attrs, "extended_key_usages", useStateForUnknownList())
+
+	resp.Schema = s
 }
 
 func (r *certificateAuthorityResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {

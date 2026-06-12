@@ -10,15 +10,14 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/objectplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 
 	ngrok "github.com/ngrok/ngrok-api-go/v9"
 	"github.com/ngrok/ngrok-api-go/v9/agent_ingresses"
+	"github.com/ngrok/terraform-provider-ngrok/v2/internal/resource_agent_ingress"
 )
 
 var (
@@ -50,92 +49,45 @@ func (r *agentIngressResource) Metadata(_ context.Context, req resource.Metadata
 	resp.TypeName = req.ProviderTypeName + "_agent_ingress"
 }
 
-func (r *agentIngressResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
-	resp.Schema = schema.Schema{
-		Description: "Agent Ingresses allow you to establish connectivity to your agents using your own domain.",
+func (r *agentIngressResource) Schema(ctx context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
+	s := resource_agent_ingress.AgentIngressResourceSchema(ctx)
+	attrs := s.Attributes
+
+	// Remove fields not in hand-written model
+	delete(attrs, "certificate_management_status")
+
+	// Replace generated CustomType certificate_management_policy with standard SingleNestedAttribute
+	attrs["certificate_management_policy"] = schema.SingleNestedAttribute{
+		Description: "Configuration for automatic management of TLS certificates for this domain.",
+		Optional:    true,
+		Computed:    true,
 		Attributes: map[string]schema.Attribute{
-			"id": schema.StringAttribute{
-				Description: "Unique agent ingress resource identifier.",
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"domain": schema.StringAttribute{
-				Description: "The domain that you own to be used as the base domain name for agent ingress.",
-				Required:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.RequiresReplace(),
-				},
-			},
-			"description": schema.StringAttribute{
-				Description: "Human-readable description of the use of this Agent Ingress. Optional, max 255 bytes.",
+			"authority": schema.StringAttribute{
+				Description: "Certificate authority to request certificates from.",
 				Optional:    true,
 				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
 			},
-			"metadata": schema.StringAttribute{
-				Description: "Arbitrary user-defined machine-readable data of this Agent Ingress. Optional, max 4096 bytes.",
+			"private_key_type": schema.StringAttribute{
+				Description: "Type of private key to use when requesting certificates.",
 				Optional:    true,
 				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"ns_targets": schema.ListAttribute{
-				Description: "A list of target values to use as the values of NS records for the domain property.",
-				Computed:    true,
-				ElementType: types.StringType,
-				PlanModifiers: []planmodifier.List{
-					listplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"region_domains": schema.ListAttribute{
-				Description: "A list of regional agent ingress domains that are subdomains of the value of domain.",
-				Computed:    true,
-				ElementType: types.StringType,
-				PlanModifiers: []planmodifier.List{
-					listplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"certificate_management_policy": schema.SingleNestedAttribute{
-				Description: "Configuration for automatic management of TLS certificates for this domain.",
-				Optional:    true,
-				Computed:    true,
-				Attributes: map[string]schema.Attribute{
-					"authority": schema.StringAttribute{
-						Description: "Certificate authority to request certificates from.",
-						Optional:    true,
-						Computed:    true,
-					},
-					"private_key_type": schema.StringAttribute{
-						Description: "Type of private key to use when requesting certificates.",
-						Optional:    true,
-						Computed:    true,
-					},
-				},
-				PlanModifiers: []planmodifier.Object{
-					objectplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"uri": schema.StringAttribute{
-				Description: "URI of the agent ingress API resource.",
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"created_at": schema.StringAttribute{
-				Description: "Timestamp when the agent ingress was created, RFC 3339 format.",
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
 			},
 		},
+		PlanModifiers: []planmodifier.Object{
+			objectplanmodifier.UseStateForUnknown(),
+		},
 	}
+
+	addStringPlanModifiers(attrs, "id", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "domain", requiresReplaceString())
+	addStringPlanModifiers(attrs, "description", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "metadata", useStateForUnknownString())
+	addListPlanModifiers(attrs, "ns_targets", useStateForUnknownList())
+	addListPlanModifiers(attrs, "region_domains", useStateForUnknownList())
+	addStringPlanModifiers(attrs, "uri", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "created_at", useStateForUnknownString())
+
+	resp.Schema = s
 }
 
 func (r *agentIngressResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {

@@ -6,14 +6,11 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
 	ngrok "github.com/ngrok/ngrok-api-go/v9"
 	"github.com/ngrok/ngrok-api-go/v9/ssh_host_certificates"
+	"github.com/ngrok/terraform-provider-ngrok/v2/internal/resource_ssh_host_certificate"
 )
 
 var (
@@ -48,103 +45,24 @@ func (r *sshHostCertificateResource) Metadata(_ context.Context, req resource.Me
 	resp.TypeName = req.ProviderTypeName + "_ssh_host_certificate"
 }
 
-func (r *sshHostCertificateResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
-	resp.Schema = schema.Schema{
-		Description: "SSH Host Certificates along with the corresponding private key allows an SSH server to assert its authenticity to connecting SSH clients who trust the SSH Certificate Authority that was used to sign the certificate.",
-		Attributes: map[string]schema.Attribute{
-			"id": schema.StringAttribute{
-				Description: "Unique identifier for this SSH Host Certificate.",
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"uri": schema.StringAttribute{
-				Description: "URI of the SSH Host Certificate API resource.",
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"created_at": schema.StringAttribute{
-				Description: "Timestamp when the SSH Host Certificate was created, RFC 3339 format.",
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"description": schema.StringAttribute{
-				Description: "Human-readable description of this SSH Host Certificate. Optional, max 255 bytes.",
-				Optional:    true,
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"metadata": schema.StringAttribute{
-				Description: "Arbitrary user-defined machine-readable data of this SSH Host Certificate. Optional, max 4096 bytes.",
-				Optional:    true,
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"public_key": schema.StringAttribute{
-				Description: "A public key in OpenSSH Authorized Keys format that this certificate signs.",
-				Required:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.RequiresReplace(),
-				},
-			},
-			"key_type": schema.StringAttribute{
-				Description: "The key type of the public key, for example rsa or ed25519.",
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"ssh_certificate_authority_id": schema.StringAttribute{
-				Description: "The unique identifier of the SSH Certificate Authority that signed this certificate.",
-				Required:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.RequiresReplace(),
-				},
-			},
-			"principals": schema.ListAttribute{
-				Description: "The list of principals included in the certificate.",
-				Optional:    true,
-				ElementType: types.StringType,
-				PlanModifiers: []planmodifier.List{
-					listplanmodifier.RequiresReplace(),
-				},
-			},
-			"valid_after": schema.StringAttribute{
-				Description: "The time when the certificate becomes valid, in RFC 3339 format.",
-				Optional:    true,
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.RequiresReplace(),
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"valid_until": schema.StringAttribute{
-				Description: "The time when the certificate becomes invalid, in RFC 3339 format.",
-				Optional:    true,
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.RequiresReplace(),
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"certificate": schema.StringAttribute{
-				Description: "The signed SSH certificate in OpenSSH Authorized Keys format.",
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-		},
-	}
+func (r *sshHostCertificateResource) Schema(ctx context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
+	s := resource_ssh_host_certificate.SshHostCertificateResourceSchema(ctx)
+	attrs := s.Attributes
+
+	addStringPlanModifiers(attrs, "id", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "uri", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "created_at", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "description", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "metadata", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "public_key", requiresReplaceString())
+	addStringPlanModifiers(attrs, "key_type", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "ssh_certificate_authority_id", requiresReplaceString())
+	addListPlanModifiers(attrs, "principals", requiresReplaceList())
+	addStringPlanModifiers(attrs, "valid_after", requiresReplaceString(), useStateForUnknownString())
+	addStringPlanModifiers(attrs, "valid_until", requiresReplaceString(), useStateForUnknownString())
+	addStringPlanModifiers(attrs, "certificate", useStateForUnknownString())
+
+	resp.Schema = s
 }
 
 func (r *sshHostCertificateResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {

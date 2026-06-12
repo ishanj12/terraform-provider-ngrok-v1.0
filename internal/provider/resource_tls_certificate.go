@@ -9,14 +9,11 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/objectplanmodifier"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
 	ngrok "github.com/ngrok/ngrok-api-go/v9"
 	"github.com/ngrok/ngrok-api-go/v9/tls_certificates"
+	"github.com/ngrok/terraform-provider-ngrok/v2/internal/resource_tls_certificate"
 )
 
 var (
@@ -61,183 +58,55 @@ func (r *tlsCertificateResource) Metadata(_ context.Context, req resource.Metada
 	resp.TypeName = req.ProviderTypeName + "_tls_certificate"
 }
 
-func (r *tlsCertificateResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
-	resp.Schema = schema.Schema{
-		Description: "TLS Certificates are pairs of x509 certificates and their matching private key that can be used to terminate TLS traffic. TLS certificates are unused until they are attached to a Domain.",
+func (r *tlsCertificateResource) Schema(ctx context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
+	s := resource_tls_certificate.TlsCertificateResourceSchema(ctx)
+	attrs := s.Attributes
+
+	// Replace generated CustomType subject_alternative_names with plain SingleNestedAttribute
+	// so the hand-written flatten function (which uses types.Object) works correctly.
+	delete(attrs, "subject_alternative_names")
+	attrs["subject_alternative_names"] = schema.SingleNestedAttribute{
+		Description: "Subject alternative names (SANs) from the leaf of this TLS certificate.",
+		Computed:    true,
 		Attributes: map[string]schema.Attribute{
-			"id": schema.StringAttribute{
-				Description: "Unique identifier for this TLS certificate.",
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"uri": schema.StringAttribute{
-				Description: "URI of the TLS certificate API resource.",
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"created_at": schema.StringAttribute{
-				Description: "Timestamp when the TLS certificate was created, RFC 3339 format.",
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"description": schema.StringAttribute{
-				Description: "Human-readable description of this TLS certificate. Optional, max 255 bytes.",
-				Optional:    true,
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"metadata": schema.StringAttribute{
-				Description: "Arbitrary user-defined machine-readable data of this TLS certificate. Optional, max 4096 bytes.",
-				Optional:    true,
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"certificate_pem": schema.StringAttribute{
-				Description: "Chain of PEM-encoded certificates, leaf first.",
-				Required:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.RequiresReplace(),
-				},
-			},
-			"private_key_pem": schema.StringAttribute{
-				Description: "Private key for the TLS certificate, PEM-encoded.",
-				Required:    true,
-				Sensitive:   true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.RequiresReplace(),
-				},
-			},
-			"subject_common_name": schema.StringAttribute{
-				Description: "Subject common name from the leaf of this TLS certificate.",
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"subject_alternative_names": schema.SingleNestedAttribute{
-				Description: "Subject alternative names (SANs) from the leaf of this TLS certificate.",
-				Computed:    true,
-				PlanModifiers: []planmodifier.Object{
-					objectplanmodifier.UseStateForUnknown(),
-				},
-				Attributes: map[string]schema.Attribute{
-					"dns_names": schema.ListAttribute{
-						Description: "Set of additional domains (including wildcards) this TLS certificate is valid for.",
-						Computed:    true,
-						ElementType: types.StringType,
-					},
-					"ips": schema.ListAttribute{
-						Description: "Set of IP addresses this TLS certificate is also valid for.",
-						Computed:    true,
-						ElementType: types.StringType,
-					},
-				},
-			},
-			"issued_at": schema.StringAttribute{
-				Description: "Timestamp when this TLS certificate was issued automatically, or empty if user-uploaded.",
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"not_before": schema.StringAttribute{
-				Description: "Timestamp when this TLS certificate becomes valid, RFC 3339 format.",
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"not_after": schema.StringAttribute{
-				Description: "Timestamp when this TLS certificate becomes invalid, RFC 3339 format.",
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"key_usages": schema.ListAttribute{
-				Description: "Set of actions the private key of this TLS certificate can be used for.",
+			"dns_names": schema.ListAttribute{
+				Description: "Set of additional domains (including wildcards) this TLS certificate is valid for.",
 				Computed:    true,
 				ElementType: types.StringType,
-				PlanModifiers: []planmodifier.List{
-					listplanmodifier.UseStateForUnknown(),
-				},
 			},
-			"extended_key_usages": schema.ListAttribute{
-				Description: "Extended set of actions the private key of this TLS certificate can be used for.",
+			"ips": schema.ListAttribute{
+				Description: "Set of IP addresses this TLS certificate is also valid for.",
 				Computed:    true,
 				ElementType: types.StringType,
-				PlanModifiers: []planmodifier.List{
-					listplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"private_key_type": schema.StringAttribute{
-				Description: "Type of the private key of this TLS certificate. One of rsa, ecdsa, or ed25519.",
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"issuer_common_name": schema.StringAttribute{
-				Description: "Issuer common name from the leaf of this TLS certificate.",
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"serial_number": schema.StringAttribute{
-				Description: "Serial number of the leaf of this TLS certificate.",
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"subject_organization": schema.StringAttribute{
-				Description: "Subject organization from the leaf of this TLS certificate.",
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"subject_organizational_unit": schema.StringAttribute{
-				Description: "Subject organizational unit from the leaf of this TLS certificate.",
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"subject_locality": schema.StringAttribute{
-				Description: "Subject locality from the leaf of this TLS certificate.",
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"subject_province": schema.StringAttribute{
-				Description: "Subject province from the leaf of this TLS certificate.",
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"subject_country": schema.StringAttribute{
-				Description: "Subject country from the leaf of this TLS certificate.",
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
 			},
 		},
 	}
+
+	addStringPlanModifiers(attrs, "id", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "uri", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "created_at", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "description", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "metadata", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "certificate_pem", requiresReplaceString())
+	addStringPlanModifiers(attrs, "private_key_pem", requiresReplaceString())
+	markSensitive(attrs, "private_key_pem")
+	addStringPlanModifiers(attrs, "subject_common_name", useStateForUnknownString())
+	addObjectPlanModifiers(attrs, "subject_alternative_names", useStateForUnknownObject())
+	addStringPlanModifiers(attrs, "issued_at", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "not_before", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "not_after", useStateForUnknownString())
+	addListPlanModifiers(attrs, "key_usages", useStateForUnknownList())
+	addListPlanModifiers(attrs, "extended_key_usages", useStateForUnknownList())
+	addStringPlanModifiers(attrs, "private_key_type", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "issuer_common_name", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "serial_number", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "subject_organization", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "subject_organizational_unit", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "subject_locality", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "subject_province", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "subject_country", useStateForUnknownString())
+
+	resp.Schema = s
 }
 
 func (r *tlsCertificateResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
