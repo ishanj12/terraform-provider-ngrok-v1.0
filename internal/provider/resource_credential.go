@@ -6,13 +6,11 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
 	ngrok "github.com/ngrok/ngrok-api-go/v9"
 	"github.com/ngrok/ngrok-api-go/v9/credentials"
+	"github.com/ngrok/terraform-provider-ngrok/v2/internal/resource_credential"
 )
 
 var (
@@ -27,7 +25,7 @@ type credentialResourceModel struct {
 	Description types.String   `tfsdk:"description"`
 	Metadata    types.String   `tfsdk:"metadata"`
 	Token       types.String   `tfsdk:"token"`
-	ACL         []types.String `tfsdk:"acl"`
+	ACL         types.List     `tfsdk:"acl"`
 	OwnerID     types.String   `tfsdk:"owner_id"`
 }
 
@@ -43,71 +41,20 @@ func (r *credentialResource) Metadata(_ context.Context, req resource.MetadataRe
 	resp.TypeName = req.ProviderTypeName + "_credential"
 }
 
-func (r *credentialResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
-	resp.Schema = schema.Schema{
-		Description: "Tunnel Credentials are ngrok agent authtokens. They authorize the ngrok agent to connect the ngrok service as your account.",
-		Attributes: map[string]schema.Attribute{
-			"id": schema.StringAttribute{
-				Description: "Unique tunnel credential resource identifier.",
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"uri": schema.StringAttribute{
-				Description: "URI of the tunnel credential API resource.",
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"created_at": schema.StringAttribute{
-				Description: "Timestamp when the tunnel credential was created, RFC 3339 format.",
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"description": schema.StringAttribute{
-				Description: "Human-readable description of what this credential will be used for.",
-				Optional:    true,
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"metadata": schema.StringAttribute{
-				Description: "Arbitrary user-defined machine-readable data of this credential. Optional, max 4096 bytes.",
-				Optional:    true,
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"token": schema.StringAttribute{
-				Description: "The generated tunnel credential token. Only available at creation time.",
-				Computed:    true,
-				Sensitive:   true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"acl": schema.ListAttribute{
-				Description: "List of ACL rules that are applied to restrict access to the credential's resources.",
-				Optional:    true,
-				ElementType: types.StringType,
-			},
-			"owner_id": schema.StringAttribute{
-				Description: "The owner ID of the credential. If supplied at creation, ownership will be assigned to the specified entity.",
-				Optional:    true,
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.RequiresReplace(),
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-		},
-	}
+func (r *credentialResource) Schema(ctx context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
+	s := resource_credential.CredentialResourceSchema(ctx)
+	attrs := s.Attributes
+
+	addStringPlanModifiers(attrs, "id", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "uri", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "created_at", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "description", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "metadata", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "token", useStateForUnknownString())
+	markSensitive(attrs, "token")
+	addStringPlanModifiers(attrs, "owner_id", requiresReplaceString(), useStateForUnknownString())
+
+	resp.Schema = s
 }
 
 func (r *credentialResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
@@ -132,10 +79,13 @@ func (r *credentialResource) Create(ctx context.Context, req resource.CreateRequ
 		return
 	}
 
+	var acl []string
+	plan.ACL.ElementsAs(ctx, &acl, false)
+
 	createReq := &ngrok.CredentialCreate{
 		Description: plan.Description.ValueString(),
 		Metadata:    plan.Metadata.ValueString(),
-		ACL:         expandStringList(plan.ACL),
+		ACL:         acl,
 		OwnerID:     stringPtrFromFramework(plan.OwnerID),
 	}
 
@@ -145,7 +95,7 @@ func (r *credentialResource) Create(ctx context.Context, req resource.CreateRequ
 		return
 	}
 
-	flattenCredential(cred, &plan)
+	flattenCredential(ctx, cred, &plan)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
@@ -168,7 +118,7 @@ func (r *credentialResource) Read(ctx context.Context, req resource.ReadRequest,
 
 	// Preserve the token from state since it's only available on create
 	token := state.Token
-	flattenCredential(cred, &state)
+	flattenCredential(ctx, cred, &state)
 	state.Token = token
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
@@ -186,11 +136,14 @@ func (r *credentialResource) Update(ctx context.Context, req resource.UpdateRequ
 		return
 	}
 
+	var acl []string
+	plan.ACL.ElementsAs(ctx, &acl, false)
+
 	updateReq := &ngrok.CredentialUpdate{
 		ID:          state.ID.ValueString(),
 		Description: stringPtrFromFramework(plan.Description),
 		Metadata:    stringPtrFromFramework(plan.Metadata),
-		ACL:         expandStringList(plan.ACL),
+		ACL:         acl,
 	}
 
 	cred, err := r.client.Update(ctx, updateReq)
@@ -201,7 +154,7 @@ func (r *credentialResource) Update(ctx context.Context, req resource.UpdateRequ
 
 	// Preserve the token from state since it's only available on create
 	token := state.Token
-	flattenCredential(cred, &plan)
+	flattenCredential(ctx, cred, &plan)
 	plan.Token = token
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
@@ -226,21 +179,13 @@ func (r *credentialResource) ImportState(ctx context.Context, req resource.Impor
 	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
 }
 
-func flattenCredential(cred *ngrok.Credential, model *credentialResourceModel) {
+func flattenCredential(ctx context.Context, cred *ngrok.Credential, model *credentialResourceModel) {
 	model.ID = types.StringValue(cred.ID)
 	model.URI = types.StringValue(cred.URI)
 	model.CreatedAt = types.StringValue(cred.CreatedAt)
 	model.Description = types.StringValue(cred.Description)
 	model.Metadata = types.StringValue(cred.Metadata)
-
-	// Preserve null vs empty distinction for ACL:
-	// - If model.ACL is nil (user never configured it), only populate if API returned non-empty
-	// - If model.ACL is non-nil (user configured it, even as []), always update from API
-	if model.ACL != nil {
-		model.ACL = flattenStringList(cred.ACL)
-	} else if len(cred.ACL) > 0 {
-		model.ACL = flattenStringList(cred.ACL)
-	}
+	model.ACL, _ = types.ListValueFrom(ctx, types.StringType, cred.ACL)
 
 	if cred.Token != nil {
 		model.Token = types.StringValue(*cred.Token)

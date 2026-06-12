@@ -6,13 +6,11 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
 	ngrok "github.com/ngrok/ngrok-api-go/v9"
 	"github.com/ngrok/ngrok-api-go/v9/ssh_credentials"
+	"github.com/ngrok/terraform-provider-ngrok/v2/internal/resource_ssh_credential"
 )
 
 var (
@@ -27,7 +25,7 @@ type sshCredentialResourceModel struct {
 	Description types.String   `tfsdk:"description"`
 	Metadata    types.String   `tfsdk:"metadata"`
 	PublicKey   types.String   `tfsdk:"public_key"`
-	ACL         []types.String `tfsdk:"acl"`
+	ACL         types.List     `tfsdk:"acl"`
 	OwnerID     types.String   `tfsdk:"owner_id"`
 }
 
@@ -43,70 +41,20 @@ func (r *sshCredentialResource) Metadata(_ context.Context, req resource.Metadat
 	resp.TypeName = req.ProviderTypeName + "_ssh_credential"
 }
 
-func (r *sshCredentialResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
-	resp.Schema = schema.Schema{
-		Description: "SSH Credentials are SSH public keys that can be used to start SSH tunnels via the ngrok SSH tunnel gateway.",
-		Attributes: map[string]schema.Attribute{
-			"id": schema.StringAttribute{
-				Description: "Unique SSH credential resource identifier.",
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"uri": schema.StringAttribute{
-				Description: "URI of the SSH credential API resource.",
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"created_at": schema.StringAttribute{
-				Description: "Timestamp when the SSH credential was created, RFC 3339 format.",
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"description": schema.StringAttribute{
-				Description: "Human-readable description of who or what will use the SSH credential to authenticate. Optional, max 255 bytes.",
-				Optional:    true,
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"metadata": schema.StringAttribute{
-				Description: "Arbitrary user-defined machine-readable data of this SSH credential. Optional, max 4096 bytes.",
-				Optional:    true,
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"public_key": schema.StringAttribute{
-				Description: "The PEM-encoded public key of the SSH keypair that will be used to authenticate.",
-				Required:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.RequiresReplace(),
-				},
-			},
-			"acl": schema.ListAttribute{
-				Description: "Optional list of ACL rules. The shortest matching rule will be used to allow or deny a connection.",
-				Optional:    true,
-				ElementType: types.StringType,
-			},
-			"owner_id": schema.StringAttribute{
-				Description: "If supplied at credential creation, ownership will be assigned to the specified User or Bot.",
-				Optional:    true,
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.RequiresReplace(),
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-		},
-	}
+func (r *sshCredentialResource) Schema(ctx context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
+	s := resource_ssh_credential.SshCredentialResourceSchema(ctx)
+	attrs := s.Attributes
+
+	// Plan modifiers
+	addStringPlanModifiers(attrs, "id", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "uri", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "created_at", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "description", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "metadata", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "public_key", requiresReplaceString())
+	addStringPlanModifiers(attrs, "owner_id", requiresReplaceString(), useStateForUnknownString())
+
+	resp.Schema = s
 }
 
 func (r *sshCredentialResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
@@ -131,10 +79,13 @@ func (r *sshCredentialResource) Create(ctx context.Context, req resource.CreateR
 		return
 	}
 
+	var acl []string
+	plan.ACL.ElementsAs(ctx, &acl, false)
+
 	createReq := &ngrok.SSHCredentialCreate{
 		Description: plan.Description.ValueString(),
 		Metadata:    plan.Metadata.ValueString(),
-		ACL:         expandStringList(plan.ACL),
+		ACL:         acl,
 		PublicKey:   plan.PublicKey.ValueString(),
 		OwnerID:     stringPtrFromFramework(plan.OwnerID),
 	}
@@ -145,7 +96,7 @@ func (r *sshCredentialResource) Create(ctx context.Context, req resource.CreateR
 		return
 	}
 
-	flattenSSHCredential(cred, &plan)
+	flattenSSHCredential(ctx, cred, &plan)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
@@ -166,7 +117,7 @@ func (r *sshCredentialResource) Read(ctx context.Context, req resource.ReadReque
 		return
 	}
 
-	flattenSSHCredential(cred, &state)
+	flattenSSHCredential(ctx, cred, &state)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
@@ -183,11 +134,14 @@ func (r *sshCredentialResource) Update(ctx context.Context, req resource.UpdateR
 		return
 	}
 
+	var acl []string
+	plan.ACL.ElementsAs(ctx, &acl, false)
+
 	updateReq := &ngrok.SSHCredentialUpdate{
 		ID:          state.ID.ValueString(),
 		Description: stringPtrFromFramework(plan.Description),
 		Metadata:    stringPtrFromFramework(plan.Metadata),
-		ACL:         expandStringList(plan.ACL),
+		ACL:         acl,
 	}
 
 	cred, err := r.client.Update(ctx, updateReq)
@@ -196,7 +150,7 @@ func (r *sshCredentialResource) Update(ctx context.Context, req resource.UpdateR
 		return
 	}
 
-	flattenSSHCredential(cred, &plan)
+	flattenSSHCredential(ctx, cred, &plan)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
@@ -220,16 +174,14 @@ func (r *sshCredentialResource) ImportState(ctx context.Context, req resource.Im
 	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
 }
 
-func flattenSSHCredential(cred *ngrok.SSHCredential, model *sshCredentialResourceModel) {
+func flattenSSHCredential(ctx context.Context, cred *ngrok.SSHCredential, model *sshCredentialResourceModel) {
 	model.ID = types.StringValue(cred.ID)
 	model.URI = types.StringValue(cred.URI)
 	model.CreatedAt = types.StringValue(cred.CreatedAt)
 	model.Description = types.StringValue(cred.Description)
 	model.Metadata = types.StringValue(cred.Metadata)
 	model.PublicKey = types.StringValue(cred.PublicKey)
-	if len(cred.ACL) > 0 {
-		model.ACL = flattenStringList(cred.ACL)
-	}
+	model.ACL, _ = types.ListValueFrom(ctx, types.StringType, cred.ACL)
 
 	if cred.OwnerID != nil {
 		model.OwnerID = types.StringValue(*cred.OwnerID)

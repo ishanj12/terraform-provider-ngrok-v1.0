@@ -11,12 +11,12 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/objectplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 
 	ngrok "github.com/ngrok/ngrok-api-go/v9"
 	"github.com/ngrok/ngrok-api-go/v9/reserved_domains"
+	"github.com/ngrok/terraform-provider-ngrok/v2/internal/resource_reserved_domain"
 )
 
 var (
@@ -34,7 +34,7 @@ type reservedDomainResourceModel struct {
 	CertificateManagementPolicy types.Object   `tfsdk:"certificate_management_policy"`
 	CNAMETarget                 types.String   `tfsdk:"cname_target"`
 	ACMEChallengeCNAMETarget    types.String   `tfsdk:"acme_challenge_cname_target"`
-	ResolvesTo                  []types.String `tfsdk:"resolves_to"`
+	ResolvesTo                  types.List     `tfsdk:"resolves_to"`
 	URI                         types.String   `tfsdk:"uri"`
 	CreatedAt                   types.String   `tfsdk:"created_at"`
 }
@@ -51,112 +51,58 @@ func (r *reservedDomainResource) Metadata(_ context.Context, req resource.Metada
 	resp.TypeName = req.ProviderTypeName + "_reserved_domain"
 }
 
-func (r *reservedDomainResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
-	resp.Schema = schema.Schema{
-		Description: "Reserved Domains are hostnames that you can listen for traffic on. Domains can be used to listen for http, https or tls traffic. You may use a domain that you own by creating a CNAME record specified in the returned resource.",
+func (r *reservedDomainResource) Schema(ctx context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
+	s := resource_reserved_domain.ReservedDomainResourceSchema(ctx)
+	attrs := s.Attributes
+
+	// Remove Ref nested objects not in hand-written model
+	delete(attrs, "certificate")
+	delete(attrs, "certificate_management_status")
+
+	// Replace generated CustomType resolves_to with flat list of strings
+	attrs["resolves_to"] = schema.ListAttribute{
+		Description: "A list of ngrok point-of-presence shortcodes (or \"global\") that the domain resolves to.",
+		Optional:    true,
+		Computed:    true,
+		ElementType: types.StringType,
+	}
+	addListPlanModifiers(attrs, "resolves_to", useStateForUnknownList())
+
+	// Replace generated CustomType certificate_management_policy with standard SingleNestedAttribute
+	attrs["certificate_management_policy"] = schema.SingleNestedAttribute{
+		Description: "Configuration for automatic management of TLS certificates for this domain, or null if automatic management is disabled. Mutually exclusive with certificate_id.",
+		Optional:    true,
+		Computed:    true,
 		Attributes: map[string]schema.Attribute{
-			"id": schema.StringAttribute{
-				Description: "Unique reserved domain resource identifier.",
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"domain": schema.StringAttribute{
-				Description: "Hostname of the reserved domain.",
-				Required:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.RequiresReplace(),
-				},
-			},
-			"region": schema.StringAttribute{
-				Description:       "Deprecated: With the launch of the ngrok Global Network domains traffic is now handled globally. This field applied only to endpoints.",
-				DeprecationMessage: "This field is deprecated and will be removed in a future version.",
-				Optional:          true,
-				Computed:          true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"description": schema.StringAttribute{
-				Description: "Human-readable description of what this reserved domain will be used for.",
+			"authority": schema.StringAttribute{
+				Description: "Certificate authority to request certificates from. The only supported value is letsencrypt.",
 				Optional:    true,
 				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
 			},
-			"metadata": schema.StringAttribute{
-				Description: "Arbitrary user-defined machine-readable data of this reserved domain. Optional, max 4096 bytes.",
+			"private_key_type": schema.StringAttribute{
+				Description: "Type of private key to use when requesting certificates. Defaults to ecdsa, can be either rsa or ecdsa.",
 				Optional:    true,
 				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"certificate_id": schema.StringAttribute{
-				Description: "ID of a user-uploaded TLS certificate to use for connections to targeting this domain. Optional, mutually exclusive with certificate_management_policy.",
-				Optional:    true,
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"certificate_management_policy": schema.SingleNestedAttribute{
-				Description: "Configuration for automatic management of TLS certificates for this domain, or null if automatic management is disabled. Mutually exclusive with certificate_id.",
-				Optional:    true,
-				Computed:    true,
-				PlanModifiers: []planmodifier.Object{
-					objectplanmodifier.UseStateForUnknown(),
-				},
-				Attributes: map[string]schema.Attribute{
-					"authority": schema.StringAttribute{
-						Description: "Certificate authority to request certificates from. The only supported value is letsencrypt.",
-						Optional:    true,
-						Computed:    true,
-					},
-					"private_key_type": schema.StringAttribute{
-						Description: "Type of private key to use when requesting certificates. Defaults to ecdsa, can be either rsa or ecdsa.",
-						Optional:    true,
-						Computed:    true,
-					},
-				},
-			},
-			"resolves_to": schema.ListAttribute{
-				Description: "A list of ngrok point-of-presence shortcodes (or \"global\") that the domain resolves to.",
-				Optional:    true,
-				ElementType: types.StringType,
-			},
-			"cname_target": schema.StringAttribute{
-				Description: "DNS CNAME target for a custom hostname, or null if the reserved domain is a subdomain of an ngrok owned domain (e.g. *.ngrok.app).",
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"acme_challenge_cname_target": schema.StringAttribute{
-				Description: "DNS CNAME target for the host _acme-challenge.example.com, where example.com is your reserved domain name. Required to issue certificates for wildcard, non-ngrok reserved domains.",
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"uri": schema.StringAttribute{
-				Description: "URI of the reserved domain API resource.",
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"created_at": schema.StringAttribute{
-				Description: "Timestamp when the reserved domain was created, RFC 3339 format.",
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
 			},
 		},
+		PlanModifiers: []planmodifier.Object{
+			objectplanmodifier.UseStateForUnknown(),
+		},
 	}
+
+	addStringPlanModifiers(attrs, "id", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "domain", requiresReplaceString())
+	addStringPlanModifiers(attrs, "region", useStateForUnknownString())
+	setDeprecated(attrs, "region", "This field is deprecated and will be removed in a future version.")
+	addStringPlanModifiers(attrs, "description", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "metadata", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "certificate_id", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "cname_target", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "acme_challenge_cname_target", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "uri", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "created_at", useStateForUnknownString())
+
+	resp.Schema = s
 }
 
 func (r *reservedDomainResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
@@ -191,7 +137,7 @@ func (r *reservedDomainResource) Create(ctx context.Context, req resource.Create
 	}
 	createReq.CertificateID = stringPtrFromFramework(plan.CertificateID)
 	createReq.CertificateManagementPolicy = expandCertPolicy(ctx, plan.CertificateManagementPolicy, &resp.Diagnostics)
-	createReq.ResolvesTo = expandResolvesTo(plan.ResolvesTo)
+	createReq.ResolvesTo = expandResolvesTo(ctx, plan.ResolvesTo)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -253,7 +199,7 @@ func (r *reservedDomainResource) Update(ctx context.Context, req resource.Update
 	}
 	updateReq.CertificateID = stringPtrFromFramework(plan.CertificateID)
 	updateReq.CertificateManagementPolicy = expandCertPolicy(ctx, plan.CertificateManagementPolicy, &resp.Diagnostics)
-	updateReq.ResolvesTo = expandResolvesTo(plan.ResolvesTo)
+	updateReq.ResolvesTo = expandResolvesTo(ctx, plan.ResolvesTo)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -314,16 +260,9 @@ func flattenReservedDomain(ctx context.Context, domain *ngrok.ReservedDomain, mo
 
 	model.CertificateID = types.StringValue(flattenRef(domain.Certificate))
 
-	if model.ResolvesTo != nil {
-		model.ResolvesTo = flattenResolvesTo(domain.ResolvesTo)
-	}
+	model.ResolvesTo = flattenResolvesToOrdered(ctx, domain.ResolvesTo, model.ResolvesTo, diags)
 
-	// Only populate cert policy if user configured it or it was previously in state
-	if !model.CertificateManagementPolicy.IsNull() && !model.CertificateManagementPolicy.IsUnknown() {
-		model.CertificateManagementPolicy = flattenCertPolicy(ctx, domain.CertificateManagementPolicy, diags)
-	} else if model.CertificateManagementPolicy.IsUnknown() {
-		model.CertificateManagementPolicy = types.ObjectNull(certPolicyAttrTypes())
-	}
+	model.CertificateManagementPolicy = flattenCertPolicy(ctx, domain.CertificateManagementPolicy, diags)
 }
 
 func flattenCertPolicy(ctx context.Context, policy *ngrok.ReservedDomainCertPolicy, diags *diag.Diagnostics) types.Object {
@@ -368,24 +307,60 @@ func certPolicyAttrTypes() map[string]attr.Type {
 	}
 }
 
-func expandResolvesTo(vals []types.String) []ngrok.ReservedDomainResolvesToEntry {
-	if vals == nil {
+func expandResolvesTo(ctx context.Context, list types.List) []ngrok.ReservedDomainResolvesToEntry {
+	if list.IsNull() || list.IsUnknown() {
 		return nil
 	}
+	var vals []string
+	list.ElementsAs(ctx, &vals, false)
 	entries := make([]ngrok.ReservedDomainResolvesToEntry, len(vals))
 	for i, v := range vals {
-		entries[i] = ngrok.ReservedDomainResolvesToEntry{Value: v.ValueString()}
+		entries[i] = ngrok.ReservedDomainResolvesToEntry{Value: v}
 	}
 	return entries
 }
 
-func flattenResolvesTo(entries []ngrok.ReservedDomainResolvesToEntry) []types.String {
+func flattenResolvesToOrdered(ctx context.Context, entries []ngrok.ReservedDomainResolvesToEntry, prior types.List, diags *diag.Diagnostics) types.List {
+	apiList := flattenResolvesTo(ctx, entries, diags)
+	if diags.HasError() || prior.IsNull() || prior.IsUnknown() {
+		return apiList
+	}
+	// Reorder API response to match prior (plan/state) order to avoid spurious diffs.
+	var priorVals []string
+	prior.ElementsAs(ctx, &priorVals, false)
+	var apiVals []string
+	apiList.ElementsAs(ctx, &apiVals, false)
+
+	apiSet := make(map[string]bool, len(apiVals))
+	for _, v := range apiVals {
+		apiSet[v] = true
+	}
+	var result []string
+	for _, v := range priorVals {
+		if apiSet[v] {
+			result = append(result, v)
+			delete(apiSet, v)
+		}
+	}
+	for _, v := range apiVals {
+		if apiSet[v] {
+			result = append(result, v)
+		}
+	}
+	list, d := types.ListValueFrom(ctx, types.StringType, result)
+	diags.Append(d...)
+	return list
+}
+
+func flattenResolvesTo(ctx context.Context, entries []ngrok.ReservedDomainResolvesToEntry, diags *diag.Diagnostics) types.List {
 	if entries == nil {
-		return nil
+		return types.ListNull(types.StringType)
 	}
-	result := make([]types.String, len(entries))
+	vals := make([]string, len(entries))
 	for i, e := range entries {
-		result[i] = types.StringValue(e.Value)
+		vals[i] = e.Value
 	}
-	return result
+	list, d := types.ListValueFrom(ctx, types.StringType, vals)
+	diags.Append(d...)
+	return list
 }

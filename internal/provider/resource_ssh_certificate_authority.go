@@ -6,14 +6,11 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
 	ngrok "github.com/ngrok/ngrok-api-go/v9"
 	"github.com/ngrok/ngrok-api-go/v9/ssh_certificate_authorities"
+	"github.com/ngrok/terraform-provider-ngrok/v2/internal/resource_ssh_certificate_authority"
 )
 
 var (
@@ -46,84 +43,22 @@ func (r *sshCertificateAuthorityResource) Metadata(_ context.Context, req resour
 	resp.TypeName = req.ProviderTypeName + "_ssh_certificate_authority"
 }
 
-func (r *sshCertificateAuthorityResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
-	resp.Schema = schema.Schema{
-		Description: "SSH Certificate Authorities are pairs of an SSH Certificate signing key and associated metadata that can be used to sign SSH host and user certificates.",
-		Attributes: map[string]schema.Attribute{
-			"id": schema.StringAttribute{
-				Description: "Unique identifier for this SSH Certificate Authority.",
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"uri": schema.StringAttribute{
-				Description: "URI of the SSH Certificate Authority API resource.",
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"created_at": schema.StringAttribute{
-				Description: "Timestamp when the SSH Certificate Authority was created, RFC 3339 format.",
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"description": schema.StringAttribute{
-				Description: "Human-readable description of this SSH Certificate Authority. Optional, max 255 bytes.",
-				Optional:    true,
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"metadata": schema.StringAttribute{
-				Description: "Arbitrary user-defined machine-readable data of this SSH Certificate Authority. Optional, max 4096 bytes.",
-				Optional:    true,
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"public_key": schema.StringAttribute{
-				Description: "Raw public key of this SSH Certificate Authority.",
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"key_type": schema.StringAttribute{
-				Description: "The type of private key for this SSH Certificate Authority.",
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"private_key_type": schema.StringAttribute{
-				Description: "The type of private key to generate. One of rsa or ed25519.",
-				Optional:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.RequiresReplace(),
-				},
-			},
-			"elliptic_curve": schema.StringAttribute{
-				Description: "The type of elliptic curve to use when creating an ECDSA key.",
-				Optional:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.RequiresReplace(),
-				},
-			},
-			"key_size": schema.Int64Attribute{
-				Description: "The key size to use when creating an RSA key. One of 2048 or 4096.",
-				Optional:    true,
-				PlanModifiers: []planmodifier.Int64{
-					int64planmodifier.RequiresReplace(),
-				},
-			},
-		},
-	}
+func (r *sshCertificateAuthorityResource) Schema(ctx context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
+	s := resource_ssh_certificate_authority.SshCertificateAuthorityResourceSchema(ctx)
+	attrs := s.Attributes
+
+	addStringPlanModifiers(attrs, "id", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "uri", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "created_at", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "description", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "metadata", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "public_key", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "key_type", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "private_key_type", requiresReplaceString())
+	addStringPlanModifiers(attrs, "elliptic_curve", useStateForUnknownString(), requiresReplaceString())
+	addInt64PlanModifiers(attrs, "key_size", useStateForUnknownInt64(), requiresReplaceInt64())
+
+	resp.Schema = s
 }
 
 func (r *sshCertificateAuthorityResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
@@ -244,4 +179,10 @@ func flattenSSHCertificateAuthority(ca *ngrok.SSHCertificateAuthority, model *ss
 	model.Metadata = types.StringValue(ca.Metadata)
 	model.PublicKey = types.StringValue(ca.PublicKey)
 	model.KeyType = types.StringValue(ca.KeyType)
+	if model.EllipticCurve.IsUnknown() {
+		model.EllipticCurve = types.StringValue("")
+	}
+	if model.KeySize.IsUnknown() {
+		model.KeySize = types.Int64Value(0)
+	}
 }

@@ -410,11 +410,9 @@ func flattenKubernetesOperator(ctx context.Context, op *ngrok.KubernetesOperator
 	model.EnabledFeatures = flattenStringList(op.EnabledFeatures)
 	model.Region = types.StringValue(op.Region)
 	model.PrincipalID = types.StringValue(op.Principal.ID)
-	// Only overwrite deployment fields that the API actually returns.
-	// The API may not persist all deployment fields (e.g., cluster_name),
-	// so we preserve plan/state values for fields the API returns as empty.
+	// Merge deployment fields: preserve plan/state values for fields the API returns as empty,
+	// but always populate from API on import (when model.Deployment is null).
 	if !model.Deployment.IsNull() && !model.Deployment.IsUnknown() {
-		apiDep := flattenK8sOperatorDeployment(ctx, &op.Deployment, diags)
 		// Merge: use API values when non-empty, preserve model values otherwise
 		var planDep k8sOperatorDeploymentModel
 		diags.Append(model.Deployment.As(ctx, &planDep, basetypes.ObjectAsOptions{})...)
@@ -439,18 +437,15 @@ func flattenKubernetesOperator(ctx context.Context, op *ngrok.KubernetesOperator
 		obj, d := types.ObjectValueFrom(ctx, k8sOperatorDeploymentAttrTypes(), &merged)
 		diags.Append(d...)
 		model.Deployment = obj
-		_ = apiDep
 	} else {
 		model.Deployment = flattenK8sOperatorDeployment(ctx, &op.Deployment, diags)
 	}
-	// Handle binding based on plan/state:
-	// - If user configured binding (non-null, non-unknown): flatten from API with prior state
-	// - If unknown (Create with Optional+Computed): resolve to null since user didn't configure it
-	// - If null: keep null — user didn't configure it
+	// Flatten binding from API. On import or when user didn't configure it,
+	// still populate from the API so state reflects reality.
 	if !model.Binding.IsNull() && !model.Binding.IsUnknown() {
 		model.Binding = flattenK8sOperatorBinding(ctx, op.Binding, model.Binding, diags)
-	} else if model.Binding.IsUnknown() {
-		model.Binding = types.ObjectNull(k8sOperatorBindingAttrTypes())
+	} else {
+		model.Binding = flattenK8sOperatorBindingFresh(ctx, op.Binding, diags)
 	}
 }
 
@@ -611,6 +606,44 @@ func flattenK8sOperatorBinding(ctx context.Context, binding *ngrok.KubernetesOpe
 	obj, d := types.ObjectValue(k8sOperatorBindingAttrTypes(), map[string]attr.Value{
 		"endpoint_selectors": selectors,
 		"csr":                csrValue,
+		"ingress_endpoint":   types.StringValue(binding.IngressEndpoint),
+		"cert":               certObj,
+	})
+	diags.Append(d...)
+	return obj
+}
+
+// flattenK8sOperatorBindingFresh flattens a binding from the API without any
+// prior state context. Used on import where no prior state exists.
+func flattenK8sOperatorBindingFresh(ctx context.Context, binding *ngrok.KubernetesOperatorBinding, diags *diag.Diagnostics) types.Object {
+	if binding == nil {
+		return types.ObjectNull(k8sOperatorBindingAttrTypes())
+	}
+
+	certObj, d := types.ObjectValueFrom(ctx, k8sOperatorCertAttrTypes(), &k8sOperatorCertModel{
+		Cert:      types.StringValue(binding.Cert.Cert),
+		NotBefore: types.StringValue(binding.Cert.NotBefore),
+		NotAfter:  types.StringValue(binding.Cert.NotAfter),
+	})
+	diags.Append(d...)
+	if diags.HasError() {
+		return types.ObjectNull(k8sOperatorBindingAttrTypes())
+	}
+
+	var selectors basetypes.ListValue
+	if len(binding.EndpointSelectors) > 0 {
+		selectors, d = types.ListValueFrom(ctx, types.StringType, flattenStringList(binding.EndpointSelectors))
+		diags.Append(d...)
+	} else {
+		selectors = types.ListNull(types.StringType)
+	}
+	if diags.HasError() {
+		return types.ObjectNull(k8sOperatorBindingAttrTypes())
+	}
+
+	obj, d := types.ObjectValue(k8sOperatorBindingAttrTypes(), map[string]attr.Value{
+		"endpoint_selectors": selectors,
+		"csr":                types.StringValue(""),
 		"ingress_endpoint":   types.StringValue(binding.IngressEndpoint),
 		"cert":               certObj,
 	})

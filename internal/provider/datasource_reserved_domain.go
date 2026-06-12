@@ -11,6 +11,7 @@ import (
 
 	ngrok "github.com/ngrok/ngrok-api-go/v9"
 	"github.com/ngrok/ngrok-api-go/v9/reserved_domains"
+	"github.com/ngrok/terraform-provider-ngrok/v2/internal/datasource_reserved_domain"
 )
 
 var _ datasource.DataSource = &reservedDomainDataSource{}
@@ -25,7 +26,7 @@ type reservedDomainDataSourceModel struct {
 	CertificateManagementPolicy types.Object   `tfsdk:"certificate_management_policy"`
 	CNAMETarget                 types.String   `tfsdk:"cname_target"`
 	ACMEChallengeCNAMETarget    types.String   `tfsdk:"acme_challenge_cname_target"`
-	ResolvesTo                  []types.String `tfsdk:"resolves_to"`
+	ResolvesTo                  types.List     `tfsdk:"resolves_to"`
 	URI                         types.String   `tfsdk:"uri"`
 	CreatedAt                   types.String   `tfsdk:"created_at"`
 }
@@ -42,72 +43,50 @@ func (d *reservedDomainDataSource) Metadata(_ context.Context, req datasource.Me
 	resp.TypeName = req.ProviderTypeName + "_reserved_domain"
 }
 
-func (d *reservedDomainDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
-	resp.Schema = schema.Schema{
-		Description: "Use this data source to look up a reserved domain by ID or domain name.",
+func (d *reservedDomainDataSource) Schema(ctx context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
+	resp.Schema = datasource_reserved_domain.ReservedDomainDataSourceSchema(ctx)
+	resp.Schema.Description = "Use this data source to look up a reserved domain by ID or domain name."
+
+	attrs := resp.Schema.Attributes
+
+	attrs["id"] = schema.StringAttribute{
+		Description: "Unique reserved domain resource identifier. Provide either id or domain.",
+		Optional:    true,
+		Computed:    true,
+	}
+	attrs["domain"] = schema.StringAttribute{
+		Description: "Hostname of the reserved domain. Provide either id or domain.",
+		Optional:    true,
+		Computed:    true,
+	}
+
+	delete(attrs, "certificate")
+	attrs["certificate_id"] = schema.StringAttribute{
+		Description: "ID of a user-uploaded TLS certificate used for connections to this domain.",
+		Computed:    true,
+	}
+
+	delete(attrs, "certificate_management_status")
+
+	attrs["certificate_management_policy"] = schema.SingleNestedAttribute{
+		Description: "Configuration for automatic management of TLS certificates for this domain.",
+		Computed:    true,
 		Attributes: map[string]schema.Attribute{
-			"id": schema.StringAttribute{
-				Description: "Unique reserved domain resource identifier. Provide either id or domain.",
-				Optional:    true,
+			"authority": schema.StringAttribute{
+				Description: "Certificate authority to request certificates from.",
 				Computed:    true,
 			},
-			"domain": schema.StringAttribute{
-				Description: "Hostname of the reserved domain. Provide either id or domain.",
-				Optional:    true,
-				Computed:    true,
-			},
-			"region": schema.StringAttribute{
-				Description: "Deprecated region field.",
-				Computed:    true,
-			},
-			"description": schema.StringAttribute{
-				Description: "Human-readable description of what this reserved domain will be used for.",
-				Computed:    true,
-			},
-			"metadata": schema.StringAttribute{
-				Description: "Arbitrary user-defined machine-readable data of this reserved domain.",
-				Computed:    true,
-			},
-			"certificate_id": schema.StringAttribute{
-				Description: "ID of a user-uploaded TLS certificate used for connections to this domain.",
-				Computed:    true,
-			},
-			"certificate_management_policy": schema.SingleNestedAttribute{
-				Description: "Configuration for automatic management of TLS certificates for this domain.",
-				Computed:    true,
-				Attributes: map[string]schema.Attribute{
-					"authority": schema.StringAttribute{
-						Description: "Certificate authority to request certificates from.",
-						Computed:    true,
-					},
-					"private_key_type": schema.StringAttribute{
-						Description: "Type of private key to use when requesting certificates.",
-						Computed:    true,
-					},
-				},
-			},
-			"resolves_to": schema.ListAttribute{
-				Description: "A list of ngrok point-of-presence shortcodes (or \"global\") that the domain resolves to.",
-				Computed:    true,
-				ElementType: types.StringType,
-			},
-			"cname_target": schema.StringAttribute{
-				Description: "DNS CNAME target for a custom hostname.",
-				Computed:    true,
-			},
-			"acme_challenge_cname_target": schema.StringAttribute{
-				Description: "DNS CNAME target for the host _acme-challenge.example.com.",
-				Computed:    true,
-			},
-			"uri": schema.StringAttribute{
-				Description: "URI of the reserved domain API resource.",
-				Computed:    true,
-			},
-			"created_at": schema.StringAttribute{
-				Description: "Timestamp when the reserved domain was created, RFC 3339 format.",
+			"private_key_type": schema.StringAttribute{
+				Description: "Type of private key to use when requesting certificates.",
 				Computed:    true,
 			},
 		},
+	}
+
+	attrs["resolves_to"] = schema.ListAttribute{
+		Description: "A list of ngrok point-of-presence shortcodes (or \"global\") that the domain resolves to.",
+		Computed:    true,
+		ElementType: types.StringType,
 	}
 }
 
@@ -213,7 +192,7 @@ func flattenReservedDomainDataSource(ctx context.Context, domain *ngrok.Reserved
 	}
 
 	model.CertificateID = types.StringValue(flattenRef(domain.Certificate))
-	model.ResolvesTo = flattenResolvesTo(domain.ResolvesTo)
+	model.ResolvesTo = flattenResolvesTo(ctx, domain.ResolvesTo, diags)
 
 	model.CertificateManagementPolicy = flattenCertPolicy(ctx, domain.CertificateManagementPolicy, diags)
 }
