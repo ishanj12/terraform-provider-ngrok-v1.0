@@ -69,7 +69,19 @@ Configure the API key via the `NGROK_API_KEY` environment variable or in the pro
 | `ngrok_tls_certificate` | TLS certificates |
 | `ngrok_vault` | Secret management vaults |
 
-Every resource also has a corresponding **data source** for lookups.
+Every resource also has a corresponding **data source** for lookups. Several data sources support dual lookup (by ID or by name/domain):
+
+- `ngrok_reserved_domain` — by `id` or `domain`
+- `ngrok_secret` — by `id` or `name`
+- `ngrok_vault` — by `id` or `name`
+
+There are also **read-only data sources** with no corresponding resource:
+
+| Data Source | Description |
+|---|---|
+| `ngrok_application_session` | Active application sessions |
+| `ngrok_application_user` | Application users from OAuth/OIDC |
+| `ngrok_tunnel_session` | Active tunnel/agent sessions |
 
 ## What changed from v0.x
 
@@ -77,8 +89,9 @@ Every resource also has a corresponding **data source** for lookups.
 - **Official `ngrok-api-go/v9` client** replaces hand-rolled REST client
 - **Cloud endpoints** replace edges — all edge, backend, and endpoint configuration resources are removed
 - **New resources**: `ngrok_cloud_endpoint`, `ngrok_kubernetes_operator`, `ngrok_vault`, `ngrok_secret`
-- **Data sources** for every resource
+- **Data sources** for every resource, plus read-only data sources for sessions and application users
 - **Import support** for every resource
+- **OpenAPI-driven code generation** for schema definitions — see [Project Structure](#project-structure)
 
 See the [upgrade guide](docs/guides/version-1-upgrade.md) for migration details.
 
