@@ -19,7 +19,24 @@ lint:
 generate:
 	go generate ./...
 
+codegen: codegen-spec codegen-framework
+
+codegen-spec:
+	~/go/bin/tfplugingen-openapi generate \
+		--config codegen/generator_config.yml \
+		--output codegen/provider_code_spec.json \
+		codegen/openapi_spec.yaml
+
+codegen-framework:
+	~/go/bin/tfplugingen-framework generate all \
+		--input codegen/provider_code_spec.json \
+		--output internal
+
+update-openapi:
+	# Pull the latest apic-generated spec from the ngrok-openapi repo
+	cp ../ngrok-openapi/ngrok.yaml codegen/openapi_spec.yaml
+
 dev: install
 	@echo "Installed. Run 'rm -f test-manual/.terraform.lock.hcl && terraform -chdir=test-manual init' to test."
 
-.PHONY: build install test testacc lint generate dev
+.PHONY: build install test testacc lint generate codegen codegen-spec codegen-framework update-openapi dev
