@@ -82,11 +82,47 @@ Every resource also has a corresponding **data source** for lookups.
 
 See the [upgrade guide](docs/guides/version-1-upgrade.md) for migration details.
 
+## Project Structure
+
+```
+├── codegen/                          # Code generation inputs
+│   ├── openapi_spec.yaml             # ngrok OpenAPI spec (source of truth)
+│   ├── generator_config.yml          # tfplugingen-openapi config
+│   └── provider_code_spec.json       # Intermediate spec (generated)
+├── internal/
+│   ├── provider/                     # Hand-written provider, resource, and data source logic
+│   │   ├── provider.go               # Provider definition and configuration
+│   │   ├── resource_*.go             # Resource CRUD + flatten/expand (uses generated schemas)
+│   │   ├── datasource_*.go           # Data source read + flatten (uses generated schemas)
+│   │   ├── helpers.go                # Shared flatten/expand utilities
+│   │   └── schema_overrides.go       # Helpers for plan modifiers, defaults, attribute overrides
+│   ├── resource_*/                   # Generated resource schema packages (one per resource)
+│   ├── datasource_*/                 # Generated data source schema packages (one per data source)
+│   └── provider_ngrok/               # Generated provider schema package
+├── docs/                             # Terraform registry documentation
+│   └── design/                       # Architecture decision records
+├── test-manual/                      # Manual testing configs (not committed)
+└── Makefile                          # Build, install, codegen targets
+```
+
+**Schema generation flow:**
+
+```
+openapi_spec.yaml → tfplugingen-openapi → provider_code_spec.json → tfplugingen-framework → internal/{resource,datasource}_*/*_gen.go
+```
+
+The generated `*_gen.go` files provide base schema definitions and model structs. The hand-written `resource_*.go` and `datasource_*.go` files import these and apply overrides: replacing CustomType attributes with standard types, flattening `Ref` objects to `_id` fields, and adding plan modifiers.
+
+See [docs/design/openapi-codegen.md](docs/design/openapi-codegen.md) for the full design.
+
 ## Development
 
 ```bash
 # Build and install locally
 make install
+
+# Regenerate schemas from OpenAPI spec
+make codegen
 
 # Run tests
 go test ./...
