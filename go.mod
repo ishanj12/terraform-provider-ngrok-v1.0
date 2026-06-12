@@ -1,4 +1,4 @@
-module github.com/ngrok/terraform-provider-ngrok/v2
+module github.com/ngrok/terraform-provider-ngrok-v1.0
 
 go 1.25
 

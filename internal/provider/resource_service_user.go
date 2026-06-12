@@ -11,7 +11,7 @@ import (
 
 	ngrok "github.com/ngrok/ngrok-api-go/v9"
 	"github.com/ngrok/ngrok-api-go/v9/bot_users"
-	"github.com/ngrok/terraform-provider-ngrok/v2/internal/resource_service_user"
+	"github.com/ngrok/terraform-provider-ngrok-v1.0/internal/resource_service_user"
 )
 
 var (

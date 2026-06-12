@@ -10,7 +10,7 @@ import (
 
 	ngrok "github.com/ngrok/ngrok-api-go/v9"
 	"github.com/ngrok/ngrok-api-go/v9/ip_policy_rules"
-	"github.com/ngrok/terraform-provider-ngrok/v2/internal/resource_ip_policy_rule"
+	"github.com/ngrok/terraform-provider-ngrok-v1.0/internal/resource_ip_policy_rule"
 )
 
 var (

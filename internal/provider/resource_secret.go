@@ -11,7 +11,7 @@ import (
 
 	ngrok "github.com/ngrok/ngrok-api-go/v9"
 	"github.com/ngrok/ngrok-api-go/v9/secrets"
-	"github.com/ngrok/terraform-provider-ngrok/v2/internal/resource_secret"
+	"github.com/ngrok/terraform-provider-ngrok-v1.0/internal/resource_secret"
 )
 
 var (

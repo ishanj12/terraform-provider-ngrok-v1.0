@@ -13,7 +13,7 @@ import (
 
 	ngrok "github.com/ngrok/ngrok-api-go/v9"
 	"github.com/ngrok/ngrok-api-go/v9/event_subscriptions"
-	"github.com/ngrok/terraform-provider-ngrok/v2/internal/resource_event_subscription"
+	"github.com/ngrok/terraform-provider-ngrok-v1.0/internal/resource_event_subscription"
 )
 
 var (

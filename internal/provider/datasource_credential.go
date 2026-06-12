@@ -9,7 +9,7 @@ import (
 
 	ngrok "github.com/ngrok/ngrok-api-go/v9"
 	"github.com/ngrok/ngrok-api-go/v9/credentials"
-	"github.com/ngrok/terraform-provider-ngrok/v2/internal/datasource_credential"
+	"github.com/ngrok/terraform-provider-ngrok-v1.0/internal/datasource_credential"
 )
 
 var _ datasource.DataSource = &credentialDataSource{}

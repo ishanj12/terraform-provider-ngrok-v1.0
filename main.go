@@ -9,7 +9,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
 
-	"github.com/ngrok/terraform-provider-ngrok/v2/internal/provider"
+	"github.com/ngrok/terraform-provider-ngrok-v1.0/internal/provider"
 )
 
 var version = "dev"

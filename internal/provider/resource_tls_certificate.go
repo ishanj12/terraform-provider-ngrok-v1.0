@@ -13,7 +13,7 @@ import (
 
 	ngrok "github.com/ngrok/ngrok-api-go/v9"
 	"github.com/ngrok/ngrok-api-go/v9/tls_certificates"
-	"github.com/ngrok/terraform-provider-ngrok/v2/internal/resource_tls_certificate"
+	"github.com/ngrok/terraform-provider-ngrok-v1.0/internal/resource_tls_certificate"
 )
 
 var (

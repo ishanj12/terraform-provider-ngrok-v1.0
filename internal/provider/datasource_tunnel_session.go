@@ -10,7 +10,7 @@ import (
 
 	ngrok "github.com/ngrok/ngrok-api-go/v9"
 	"github.com/ngrok/ngrok-api-go/v9/tunnel_sessions"
-	"github.com/ngrok/terraform-provider-ngrok/v2/internal/datasource_tunnel_session"
+	"github.com/ngrok/terraform-provider-ngrok-v1.0/internal/datasource_tunnel_session"
 )
 
 var _ datasource.DataSource = &tunnelSessionDataSource{}

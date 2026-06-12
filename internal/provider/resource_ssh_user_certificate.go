@@ -11,7 +11,7 @@ import (
 
 	ngrok "github.com/ngrok/ngrok-api-go/v9"
 	"github.com/ngrok/ngrok-api-go/v9/ssh_user_certificates"
-	"github.com/ngrok/terraform-provider-ngrok/v2/internal/resource_ssh_user_certificate"
+	"github.com/ngrok/terraform-provider-ngrok-v1.0/internal/resource_ssh_user_certificate"
 )
 
 var (

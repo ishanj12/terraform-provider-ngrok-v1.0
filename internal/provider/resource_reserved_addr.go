@@ -10,7 +10,7 @@ import (
 
 	ngrok "github.com/ngrok/ngrok-api-go/v9"
 	"github.com/ngrok/ngrok-api-go/v9/reserved_addrs"
-	"github.com/ngrok/terraform-provider-ngrok/v2/internal/resource_reserved_addr"
+	"github.com/ngrok/terraform-provider-ngrok-v1.0/internal/resource_reserved_addr"
 )
 
 var (

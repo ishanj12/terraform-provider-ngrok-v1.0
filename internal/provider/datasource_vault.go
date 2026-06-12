@@ -10,7 +10,7 @@ import (
 
 	ngrok "github.com/ngrok/ngrok-api-go/v9"
 	"github.com/ngrok/ngrok-api-go/v9/vaults"
-	"github.com/ngrok/terraform-provider-ngrok/v2/internal/datasource_vault"
+	"github.com/ngrok/terraform-provider-ngrok-v1.0/internal/datasource_vault"
 )
 
 var _ datasource.DataSource = &vaultDataSource{}

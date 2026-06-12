@@ -10,7 +10,7 @@ import (
 
 	ngrok "github.com/ngrok/ngrok-api-go/v9"
 	"github.com/ngrok/ngrok-api-go/v9/secrets"
-	"github.com/ngrok/terraform-provider-ngrok/v2/internal/datasource_secret"
+	"github.com/ngrok/terraform-provider-ngrok-v1.0/internal/datasource_secret"
 )
 
 var _ datasource.DataSource = &secretDataSource{}

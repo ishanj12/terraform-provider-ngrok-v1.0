@@ -9,7 +9,7 @@ import (
 
 	ngrok "github.com/ngrok/ngrok-api-go/v9"
 	"github.com/ngrok/ngrok-api-go/v9/api_keys"
-	"github.com/ngrok/terraform-provider-ngrok/v2/internal/datasource_api_key"
+	"github.com/ngrok/terraform-provider-ngrok-v1.0/internal/datasource_api_key"
 )
 
 var _ datasource.DataSource = &apiKeyDataSource{}

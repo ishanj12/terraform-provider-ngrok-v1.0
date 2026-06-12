@@ -11,7 +11,7 @@ import (
 
 	ngrok "github.com/ngrok/ngrok-api-go/v9"
 	"github.com/ngrok/ngrok-api-go/v9/reserved_domains"
-	"github.com/ngrok/terraform-provider-ngrok/v2/internal/datasource_reserved_domain"
+	"github.com/ngrok/terraform-provider-ngrok-v1.0/internal/datasource_reserved_domain"
 )
 
 var _ datasource.DataSource = &reservedDomainDataSource{}

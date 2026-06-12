@@ -10,7 +10,7 @@ import (
 
 	ngrok "github.com/ngrok/ngrok-api-go/v9"
 	"github.com/ngrok/ngrok-api-go/v9/ssh_credentials"
-	"github.com/ngrok/terraform-provider-ngrok/v2/internal/resource_ssh_credential"
+	"github.com/ngrok/terraform-provider-ngrok-v1.0/internal/resource_ssh_credential"
 )
 
 var (

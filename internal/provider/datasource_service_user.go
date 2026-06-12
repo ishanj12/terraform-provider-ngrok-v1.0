@@ -8,7 +8,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
 	ngrok "github.com/ngrok/ngrok-api-go/v9"
-	"github.com/ngrok/terraform-provider-ngrok/v2/internal/datasource_service_user"
+	"github.com/ngrok/terraform-provider-ngrok-v1.0/internal/datasource_service_user"
 	"github.com/ngrok/ngrok-api-go/v9/bot_users"
 )
 

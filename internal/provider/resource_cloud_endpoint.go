@@ -15,7 +15,7 @@ import (
 
 	ngrok "github.com/ngrok/ngrok-api-go/v9"
 	"github.com/ngrok/ngrok-api-go/v9/endpoints"
-	"github.com/ngrok/terraform-provider-ngrok/v2/internal/resource_cloud_endpoint"
+	"github.com/ngrok/terraform-provider-ngrok-v1.0/internal/resource_cloud_endpoint"
 )
 
 var (

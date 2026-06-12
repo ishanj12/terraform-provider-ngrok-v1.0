@@ -10,7 +10,7 @@ import (
 
 	ngrok "github.com/ngrok/ngrok-api-go/v9"
 	"github.com/ngrok/ngrok-api-go/v9/application_sessions"
-	"github.com/ngrok/terraform-provider-ngrok/v2/internal/datasource_application_session"
+	"github.com/ngrok/terraform-provider-ngrok-v1.0/internal/datasource_application_session"
 )
 
 var _ datasource.DataSource = &applicationSessionDataSource{}
