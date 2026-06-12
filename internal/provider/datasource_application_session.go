@@ -10,6 +10,7 @@ import (
 
 	ngrok "github.com/ngrok/ngrok-api-go/v9"
 	"github.com/ngrok/ngrok-api-go/v9/application_sessions"
+	"github.com/ngrok/terraform-provider-ngrok/v2/internal/datasource_application_session"
 )
 
 var _ datasource.DataSource = &applicationSessionDataSource{}
@@ -39,52 +40,33 @@ func (d *applicationSessionDataSource) Metadata(_ context.Context, req datasourc
 	resp.TypeName = req.ProviderTypeName + "_application_session"
 }
 
-func (d *applicationSessionDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
-	resp.Schema = schema.Schema{
-		Description: "Use this data source to look up an application session by ID.",
-		Attributes: map[string]schema.Attribute{
-			"id": schema.StringAttribute{
-				Description: "Unique application session resource identifier.",
-				Required:    true,
-			},
-			"uri": schema.StringAttribute{
-				Description: "URI of the application session API resource.",
-				Computed:    true,
-			},
-			"public_url": schema.StringAttribute{
-				Description: "The public URL of the application session.",
-				Computed:    true,
-			},
-			"application_user_id": schema.StringAttribute{
-				Description: "The ID of the application user associated with this session.",
-				Computed:    true,
-			},
-			"created_at": schema.StringAttribute{
-				Description: "Timestamp when the application session was created, in RFC 3339 format.",
-				Computed:    true,
-			},
-			"last_active": schema.StringAttribute{
-				Description: "Timestamp when the application session was last active, in RFC 3339 format.",
-				Computed:    true,
-			},
-			"expires_at": schema.StringAttribute{
-				Description: "Timestamp when the application session expires, in RFC 3339 format.",
-				Computed:    true,
-			},
-			"endpoint_id": schema.StringAttribute{
-				Description: "The ID of the endpoint associated with this session.",
-				Computed:    true,
-			},
-			"edge_id": schema.StringAttribute{
-				Description: "The ID of the edge associated with this session.",
-				Computed:    true,
-			},
-			"route_id": schema.StringAttribute{
-				Description: "The ID of the route associated with this session.",
-				Computed:    true,
-			},
-		},
+func (d *applicationSessionDataSource) Schema(ctx context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
+	s := datasource_application_session.ApplicationSessionDataSourceSchema(ctx)
+	attrs := s.Attributes
+	// Delete Ref nested objects and complex nested objects not in hand-written model
+	delete(attrs, "application_user")
+	delete(attrs, "endpoint")
+	delete(attrs, "edge")
+	delete(attrs, "route")
+	delete(attrs, "browser_session")
+	// Add flat _id fields for Ref objects
+	attrs["application_user_id"] = schema.StringAttribute{
+		Computed:    true,
+		Description: "The ID of the application user associated with this session.",
 	}
+	attrs["endpoint_id"] = schema.StringAttribute{
+		Computed:    true,
+		Description: "The ID of the endpoint associated with this session.",
+	}
+	attrs["edge_id"] = schema.StringAttribute{
+		Computed:    true,
+		Description: "The ID of the edge associated with this session.",
+	}
+	attrs["route_id"] = schema.StringAttribute{
+		Computed:    true,
+		Description: "The ID of the route associated with this session.",
+	}
+	resp.Schema = s
 }
 
 func (d *applicationSessionDataSource) Configure(_ context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {

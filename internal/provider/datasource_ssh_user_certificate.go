@@ -10,6 +10,7 @@ import (
 
 	ngrok "github.com/ngrok/ngrok-api-go/v9"
 	"github.com/ngrok/ngrok-api-go/v9/ssh_user_certificates"
+	"github.com/ngrok/terraform-provider-ngrok/v2/internal/datasource_ssh_user_certificate"
 )
 
 var _ datasource.DataSource = &sshUserCertificateDataSource{}
@@ -43,70 +44,21 @@ func (d *sshUserCertificateDataSource) Metadata(_ context.Context, req datasourc
 	resp.TypeName = req.ProviderTypeName + "_ssh_user_certificate"
 }
 
-func (d *sshUserCertificateDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
-	resp.Schema = schema.Schema{
-		Description: "Use this data source to look up an SSH User Certificate by ID.",
-		Attributes: map[string]schema.Attribute{
-			"id": schema.StringAttribute{
-				Description: "Unique identifier for this SSH User Certificate.",
-				Required:    true,
-			},
-			"uri": schema.StringAttribute{
-				Description: "URI of the SSH User Certificate API resource.",
-				Computed:    true,
-			},
-			"created_at": schema.StringAttribute{
-				Description: "Timestamp when the SSH User Certificate was created, RFC 3339 format.",
-				Computed:    true,
-			},
-			"description": schema.StringAttribute{
-				Description: "Human-readable description of this SSH User Certificate.",
-				Computed:    true,
-			},
-			"metadata": schema.StringAttribute{
-				Description: "Arbitrary user-defined machine-readable data of this SSH User Certificate.",
-				Computed:    true,
-			},
-			"public_key": schema.StringAttribute{
-				Description: "A public key in OpenSSH Authorized Keys format that this certificate signs.",
-				Computed:    true,
-			},
-			"key_type": schema.StringAttribute{
-				Description: "The key type of the public key.",
-				Computed:    true,
-			},
-			"ssh_certificate_authority_id": schema.StringAttribute{
-				Description: "The unique identifier of the SSH Certificate Authority that signed this certificate.",
-				Computed:    true,
-			},
-			"principals": schema.ListAttribute{
-				Description: "The list of principals included in the certificate.",
-				Computed:    true,
-				ElementType: types.StringType,
-			},
-			"critical_options": schema.MapAttribute{
-				Description: "A map of critical options included in the certificate.",
-				Computed:    true,
-				ElementType: types.StringType,
-			},
-			"extensions": schema.MapAttribute{
-				Description: "A map of extensions included in the certificate.",
-				Computed:    true,
-				ElementType: types.StringType,
-			},
-			"valid_after": schema.StringAttribute{
-				Description: "The time when the certificate becomes valid, in RFC 3339 format.",
-				Computed:    true,
-			},
-			"valid_until": schema.StringAttribute{
-				Description: "The time when the certificate becomes invalid, in RFC 3339 format.",
-				Computed:    true,
-			},
-			"certificate": schema.StringAttribute{
-				Description: "The signed SSH certificate in OpenSSH Authorized Keys format.",
-				Computed:    true,
-			},
-		},
+func (d *sshUserCertificateDataSource) Schema(ctx context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
+	resp.Schema = datasource_ssh_user_certificate.SshUserCertificateDataSourceSchema(ctx)
+	resp.Schema.Description = "Use this data source to look up an SSH User Certificate by ID."
+
+	attrs := resp.Schema.Attributes
+
+	attrs["critical_options"] = schema.MapAttribute{
+		Description: "A map of critical options included in the certificate.",
+		Computed:    true,
+		ElementType: types.StringType,
+	}
+	attrs["extensions"] = schema.MapAttribute{
+		Description: "A map of extensions included in the certificate.",
+		Computed:    true,
+		ElementType: types.StringType,
 	}
 }
 

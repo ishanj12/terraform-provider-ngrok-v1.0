@@ -10,6 +10,7 @@ import (
 
 	ngrok "github.com/ngrok/ngrok-api-go/v9"
 	"github.com/ngrok/ngrok-api-go/v9/ip_restrictions"
+	"github.com/ngrok/terraform-provider-ngrok/v2/internal/datasource_ip_restriction"
 )
 
 var _ datasource.DataSource = &ipRestrictionDataSource{}
@@ -37,45 +38,18 @@ func (d *ipRestrictionDataSource) Metadata(_ context.Context, req datasource.Met
 	resp.TypeName = req.ProviderTypeName + "_ip_restriction"
 }
 
-func (d *ipRestrictionDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
-	resp.Schema = schema.Schema{
-		Description: "Use this data source to look up an IP restriction by ID.",
-		Attributes: map[string]schema.Attribute{
-			"id": schema.StringAttribute{
-				Description: "Unique identifier for this IP restriction.",
-				Required:    true,
-			},
-			"uri": schema.StringAttribute{
-				Description: "URI of the IP restriction API resource.",
-				Computed:    true,
-			},
-			"created_at": schema.StringAttribute{
-				Description: "Timestamp when the IP restriction was created, RFC 3339 format.",
-				Computed:    true,
-			},
-			"description": schema.StringAttribute{
-				Description: "Human-readable description of this IP restriction.",
-				Computed:    true,
-			},
-			"metadata": schema.StringAttribute{
-				Description: "Arbitrary user-defined machine-readable data of this IP restriction.",
-				Computed:    true,
-			},
-			"enforced": schema.BoolAttribute{
-				Description: "True if the IP restriction will be enforced.",
-				Computed:    true,
-			},
-			"type": schema.StringAttribute{
-				Description: "Type of the IP restriction.",
-				Computed:    true,
-			},
-			"ip_policy_ids": schema.ListAttribute{
-				Description: "The set of IP policy identifiers that are used to enforce the restriction.",
-				Computed:    true,
-				ElementType: types.StringType,
-			},
-		},
+func (d *ipRestrictionDataSource) Schema(ctx context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
+	s := datasource_ip_restriction.IpRestrictionDataSourceSchema(ctx)
+	attrs := s.Attributes
+	// Delete ListNestedAttribute of Ref objects
+	delete(attrs, "ip_policies")
+	// Add flat _ids list field for ip_policies Ref
+	attrs["ip_policy_ids"] = schema.ListAttribute{
+		Computed:    true,
+		Description: "The set of IP policy identifiers that are used to enforce the restriction.",
+		ElementType: types.StringType,
 	}
+	resp.Schema = s
 }
 
 func (d *ipRestrictionDataSource) Configure(_ context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {

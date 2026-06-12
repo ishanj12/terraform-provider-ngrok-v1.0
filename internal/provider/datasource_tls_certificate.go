@@ -11,6 +11,7 @@ import (
 
 	ngrok "github.com/ngrok/ngrok-api-go/v9"
 	"github.com/ngrok/ngrok-api-go/v9/tls_certificates"
+	"github.com/ngrok/terraform-provider-ngrok/v2/internal/datasource_tls_certificate"
 )
 
 var _ datasource.DataSource = &tlsCertificateDataSource{}
@@ -51,107 +52,25 @@ func (d *tlsCertificateDataSource) Metadata(_ context.Context, req datasource.Me
 	resp.TypeName = req.ProviderTypeName + "_tls_certificate"
 }
 
-func (d *tlsCertificateDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
-	resp.Schema = schema.Schema{
-		Description: "Use this data source to look up a TLS certificate by ID.",
+func (d *tlsCertificateDataSource) Schema(ctx context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
+	resp.Schema = datasource_tls_certificate.TlsCertificateDataSourceSchema(ctx)
+	resp.Schema.Description = "Use this data source to look up a TLS certificate by ID."
+
+	attrs := resp.Schema.Attributes
+
+	attrs["subject_alternative_names"] = schema.SingleNestedAttribute{
+		Description: "Subject alternative names (SANs) from the leaf of this TLS certificate.",
+		Computed:    true,
 		Attributes: map[string]schema.Attribute{
-			"id": schema.StringAttribute{
-				Description: "Unique identifier for this TLS certificate.",
-				Required:    true,
-			},
-			"uri": schema.StringAttribute{
-				Description: "URI of the TLS certificate API resource.",
-				Computed:    true,
-			},
-			"created_at": schema.StringAttribute{
-				Description: "Timestamp when the TLS certificate was created, RFC 3339 format.",
-				Computed:    true,
-			},
-			"description": schema.StringAttribute{
-				Description: "Human-readable description of this TLS certificate.",
-				Computed:    true,
-			},
-			"metadata": schema.StringAttribute{
-				Description: "Arbitrary user-defined machine-readable data of this TLS certificate.",
-				Computed:    true,
-			},
-			"certificate_pem": schema.StringAttribute{
-				Description: "Chain of PEM-encoded certificates, leaf first.",
-				Computed:    true,
-			},
-			"subject_common_name": schema.StringAttribute{
-				Description: "Subject common name from the leaf of this TLS certificate.",
-				Computed:    true,
-			},
-			"subject_alternative_names": schema.SingleNestedAttribute{
-				Description: "Subject alternative names (SANs) from the leaf of this TLS certificate.",
-				Computed:    true,
-				Attributes: map[string]schema.Attribute{
-					"dns_names": schema.ListAttribute{
-						Description: "Set of additional domains (including wildcards) this TLS certificate is valid for.",
-						Computed:    true,
-						ElementType: types.StringType,
-					},
-					"ips": schema.ListAttribute{
-						Description: "Set of IP addresses this TLS certificate is also valid for.",
-						Computed:    true,
-						ElementType: types.StringType,
-					},
-				},
-			},
-			"issued_at": schema.StringAttribute{
-				Description: "Timestamp when this TLS certificate was issued automatically, or empty if user-uploaded.",
-				Computed:    true,
-			},
-			"not_before": schema.StringAttribute{
-				Description: "Timestamp when this TLS certificate becomes valid, RFC 3339 format.",
-				Computed:    true,
-			},
-			"not_after": schema.StringAttribute{
-				Description: "Timestamp when this TLS certificate becomes invalid, RFC 3339 format.",
-				Computed:    true,
-			},
-			"key_usages": schema.ListAttribute{
-				Description: "Set of actions the private key of this TLS certificate can be used for.",
+			"dns_names": schema.ListAttribute{
+				Description: "Set of additional domains (including wildcards) this TLS certificate is valid for.",
 				Computed:    true,
 				ElementType: types.StringType,
 			},
-			"extended_key_usages": schema.ListAttribute{
-				Description: "Extended set of actions the private key of this TLS certificate can be used for.",
+			"ips": schema.ListAttribute{
+				Description: "Set of IP addresses this TLS certificate is also valid for.",
 				Computed:    true,
 				ElementType: types.StringType,
-			},
-			"private_key_type": schema.StringAttribute{
-				Description: "Type of the private key of this TLS certificate. One of rsa, ecdsa, or ed25519.",
-				Computed:    true,
-			},
-			"issuer_common_name": schema.StringAttribute{
-				Description: "Issuer common name from the leaf of this TLS certificate.",
-				Computed:    true,
-			},
-			"serial_number": schema.StringAttribute{
-				Description: "Serial number of the leaf of this TLS certificate.",
-				Computed:    true,
-			},
-			"subject_organization": schema.StringAttribute{
-				Description: "Subject organization from the leaf of this TLS certificate.",
-				Computed:    true,
-			},
-			"subject_organizational_unit": schema.StringAttribute{
-				Description: "Subject organizational unit from the leaf of this TLS certificate.",
-				Computed:    true,
-			},
-			"subject_locality": schema.StringAttribute{
-				Description: "Subject locality from the leaf of this TLS certificate.",
-				Computed:    true,
-			},
-			"subject_province": schema.StringAttribute{
-				Description: "Subject province from the leaf of this TLS certificate.",
-				Computed:    true,
-			},
-			"subject_country": schema.StringAttribute{
-				Description: "Subject country from the leaf of this TLS certificate.",
-				Computed:    true,
 			},
 		},
 	}

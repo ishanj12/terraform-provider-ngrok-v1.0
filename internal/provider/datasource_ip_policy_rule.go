@@ -10,6 +10,7 @@ import (
 
 	ngrok "github.com/ngrok/ngrok-api-go/v9"
 	"github.com/ngrok/ngrok-api-go/v9/ip_policy_rules"
+	"github.com/ngrok/terraform-provider-ngrok/v2/internal/datasource_ip_policy_rule"
 )
 
 var _ datasource.DataSource = &ipPolicyRuleDataSource{}
@@ -37,44 +38,17 @@ func (d *ipPolicyRuleDataSource) Metadata(_ context.Context, req datasource.Meta
 	resp.TypeName = req.ProviderTypeName + "_ip_policy_rule"
 }
 
-func (d *ipPolicyRuleDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
-	resp.Schema = schema.Schema{
-		Description: "Use this data source to look up an IP policy rule by ID.",
-		Attributes: map[string]schema.Attribute{
-			"id": schema.StringAttribute{
-				Description: "Unique identifier for this IP policy rule.",
-				Required:    true,
-			},
-			"uri": schema.StringAttribute{
-				Description: "URI of the IP policy rule API resource.",
-				Computed:    true,
-			},
-			"created_at": schema.StringAttribute{
-				Description: "Timestamp when the IP policy rule was created, RFC 3339 format.",
-				Computed:    true,
-			},
-			"description": schema.StringAttribute{
-				Description: "Human-readable description of what this IP policy rule will be used for.",
-				Computed:    true,
-			},
-			"metadata": schema.StringAttribute{
-				Description: "Arbitrary user-defined machine-readable data of this IP policy rule.",
-				Computed:    true,
-			},
-			"cidr": schema.StringAttribute{
-				Description: "An IP or IP range specified in CIDR notation.",
-				Computed:    true,
-			},
-			"ip_policy_id": schema.StringAttribute{
-				Description: "ID of the IP policy this rule belongs to.",
-				Computed:    true,
-			},
-			"action": schema.StringAttribute{
-				Description: "The action to apply to the policy rule, either allow or deny.",
-				Computed:    true,
-			},
-		},
+func (d *ipPolicyRuleDataSource) Schema(ctx context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
+	s := datasource_ip_policy_rule.IpPolicyRuleDataSourceSchema(ctx)
+	attrs := s.Attributes
+	// Delete Ref nested object
+	delete(attrs, "ip_policy")
+	// Add flat _id field for ip_policy Ref
+	attrs["ip_policy_id"] = schema.StringAttribute{
+		Computed:    true,
+		Description: "ID of the IP policy this rule belongs to.",
 	}
+	resp.Schema = s
 }
 
 func (d *ipPolicyRuleDataSource) Configure(_ context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {

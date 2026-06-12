@@ -9,6 +9,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
 	ngrok "github.com/ngrok/ngrok-api-go/v9"
+	"github.com/ngrok/terraform-provider-ngrok/v2/internal/datasource_reserved_addr"
 	"github.com/ngrok/ngrok-api-go/v9/reserved_addrs"
 )
 
@@ -36,42 +37,20 @@ func (d *reservedAddrDataSource) Metadata(_ context.Context, req datasource.Meta
 	resp.TypeName = req.ProviderTypeName + "_reserved_addr"
 }
 
-func (d *reservedAddrDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
-	resp.Schema = schema.Schema{
-		Description: "Use this data source to look up a reserved address by ID or address.",
-		Attributes: map[string]schema.Attribute{
-			"id": schema.StringAttribute{
-				Description: "Unique reserved address resource identifier. Provide either id or addr.",
-				Optional:    true,
-				Computed:    true,
-			},
-			"addr": schema.StringAttribute{
-				Description: "Hostname:port of the reserved address. Provide either id or addr.",
-				Optional:    true,
-				Computed:    true,
-			},
-			"region": schema.StringAttribute{
-				Description: "The geographic ngrok datacenter where the address is reserved.",
-				Computed:    true,
-			},
-			"description": schema.StringAttribute{
-				Description: "Human-readable description of what this reserved address will be used for.",
-				Computed:    true,
-			},
-			"metadata": schema.StringAttribute{
-				Description: "Arbitrary user-defined machine-readable data of this reserved address.",
-				Computed:    true,
-			},
-			"uri": schema.StringAttribute{
-				Description: "URI of the reserved address API resource.",
-				Computed:    true,
-			},
-			"created_at": schema.StringAttribute{
-				Description: "Timestamp when the reserved address was created, RFC 3339 format.",
-				Computed:    true,
-			},
-		},
-	}
+func (d *reservedAddrDataSource) Schema(ctx context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
+	s := datasource_reserved_addr.ReservedAddrDataSourceSchema(ctx)
+	attrs := s.Attributes
+	// id: change from Required to Optional+Computed for lookup-by-addr
+	idAttr := attrs["id"].(schema.StringAttribute)
+	idAttr.Required = false
+	idAttr.Optional = true
+	idAttr.Computed = true
+	attrs["id"] = idAttr
+	// addr: change from Computed to Optional+Computed for lookup-by-addr
+	addrAttr := attrs["addr"].(schema.StringAttribute)
+	addrAttr.Optional = true
+	attrs["addr"] = addrAttr
+	resp.Schema = s
 }
 
 func (d *reservedAddrDataSource) Configure(_ context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {

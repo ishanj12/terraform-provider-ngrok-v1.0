@@ -10,6 +10,7 @@ import (
 
 	ngrok "github.com/ngrok/ngrok-api-go/v9"
 	"github.com/ngrok/ngrok-api-go/v9/tunnel_sessions"
+	"github.com/ngrok/terraform-provider-ngrok/v2/internal/datasource_tunnel_session"
 )
 
 var _ datasource.DataSource = &tunnelSessionDataSource{}
@@ -39,52 +40,17 @@ func (d *tunnelSessionDataSource) Metadata(_ context.Context, req datasource.Met
 	resp.TypeName = req.ProviderTypeName + "_tunnel_session"
 }
 
-func (d *tunnelSessionDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
-	resp.Schema = schema.Schema{
-		Description: "Use this data source to look up a tunnel session by ID.",
-		Attributes: map[string]schema.Attribute{
-			"id": schema.StringAttribute{
-				Description: "Unique tunnel session resource identifier.",
-				Required:    true,
-			},
-			"agent_version": schema.StringAttribute{
-				Description: "The version of the ngrok agent that started this tunnel session.",
-				Computed:    true,
-			},
-			"credential_id": schema.StringAttribute{
-				Description: "The ID of the credential used to start this tunnel session.",
-				Computed:    true,
-			},
-			"ip": schema.StringAttribute{
-				Description: "The IP address of the client that started this tunnel session.",
-				Computed:    true,
-			},
-			"metadata": schema.StringAttribute{
-				Description: "User-supplied metadata for this tunnel session.",
-				Computed:    true,
-			},
-			"os": schema.StringAttribute{
-				Description: "The operating system of the client that started this tunnel session.",
-				Computed:    true,
-			},
-			"region": schema.StringAttribute{
-				Description: "The ngrok region in which this tunnel session was started.",
-				Computed:    true,
-			},
-			"started_at": schema.StringAttribute{
-				Description: "Timestamp when the tunnel session was started, in RFC 3339 format.",
-				Computed:    true,
-			},
-			"transport": schema.StringAttribute{
-				Description: "The transport protocol used by this tunnel session.",
-				Computed:    true,
-			},
-			"uri": schema.StringAttribute{
-				Description: "URI of the tunnel session API resource.",
-				Computed:    true,
-			},
-		},
+func (d *tunnelSessionDataSource) Schema(ctx context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
+	s := datasource_tunnel_session.TunnelSessionDataSourceSchema(ctx)
+	attrs := s.Attributes
+	// Delete Ref nested object
+	delete(attrs, "credential")
+	// Add flat _id field for credential Ref
+	attrs["credential_id"] = schema.StringAttribute{
+		Computed:    true,
+		Description: "The ID of the credential used to start this tunnel session.",
 	}
+	resp.Schema = s
 }
 
 func (d *tunnelSessionDataSource) Configure(_ context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {

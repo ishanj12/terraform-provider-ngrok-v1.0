@@ -10,6 +10,7 @@ import (
 
 	ngrok "github.com/ngrok/ngrok-api-go/v9"
 	"github.com/ngrok/ngrok-api-go/v9/endpoints"
+	"github.com/ngrok/terraform-provider-ngrok/v2/internal/datasource_cloud_endpoint"
 )
 
 var _ datasource.DataSource = &cloudEndpointDataSource{}
@@ -42,65 +43,31 @@ func (d *cloudEndpointDataSource) Metadata(_ context.Context, req datasource.Met
 	resp.TypeName = req.ProviderTypeName + "_cloud_endpoint"
 }
 
-func (d *cloudEndpointDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
-	resp.Schema = schema.Schema{
-		Description: "Use this data source to look up a cloud endpoint by ID.",
-		Attributes: map[string]schema.Attribute{
-			"id": schema.StringAttribute{
-				Description: "Unique endpoint resource identifier.",
-				Required:    true,
-			},
-			"url": schema.StringAttribute{
-				Description: "The URL of the endpoint.",
-				Computed:    true,
-			},
-			"type": schema.StringAttribute{
-				Description: "The type of endpoint.",
-				Computed:    true,
-			},
-			"traffic_policy": schema.StringAttribute{
-				Description: "The traffic policy attached to this endpoint.",
-				Computed:    true,
-			},
-			"description": schema.StringAttribute{
-				Description: "Human-readable description of this cloud endpoint.",
-				Computed:    true,
-			},
-			"metadata": schema.StringAttribute{
-				Description: "Arbitrary user-defined machine-readable data of this cloud endpoint.",
-				Computed:    true,
-			},
-			"bindings": schema.ListAttribute{
-				Description: "The bindings associated with this endpoint.",
-				Computed:    true,
-				ElementType: types.StringType,
-			},
-			"pooling_enabled": schema.BoolAttribute{
-				Description: "Whether the endpoint allows connection pooling.",
-				Computed:    true,
-			},
-			"domain_id": schema.StringAttribute{
-				Description: "ID of the domain reserved for this endpoint.",
-				Computed:    true,
-			},
-			"region": schema.StringAttribute{
-				Description: "Region of the endpoint.",
-				Computed:    true,
-			},
-			"uri": schema.StringAttribute{
-				Description: "URI of the cloud endpoint API resource.",
-				Computed:    true,
-			},
-			"created_at": schema.StringAttribute{
-				Description: "Timestamp when the endpoint was created, RFC 3339 format.",
-				Computed:    true,
-			},
-			"updated_at": schema.StringAttribute{
-				Description: "Timestamp when the endpoint was last updated, RFC 3339 format.",
-				Computed:    true,
-			},
-		},
+func (d *cloudEndpointDataSource) Schema(ctx context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
+	s := datasource_cloud_endpoint.CloudEndpointDataSourceSchema(ctx)
+	attrs := s.Attributes
+	// Delete Ref nested objects and extra OpenAPI fields not in hand-written model
+	delete(attrs, "domain")
+	delete(attrs, "edge")
+	delete(attrs, "tunnel")
+	delete(attrs, "tunnel_session")
+	delete(attrs, "tcp_addr")
+	delete(attrs, "principal")
+	delete(attrs, "host")
+	delete(attrs, "hostport")
+	delete(attrs, "name")
+	delete(attrs, "port")
+	delete(attrs, "proto")
+	delete(attrs, "public_url")
+	delete(attrs, "scheme")
+	delete(attrs, "upstream_protocol")
+	delete(attrs, "upstream_url")
+	// Add flat _id field for domain Ref
+	attrs["domain_id"] = schema.StringAttribute{
+		Computed:    true,
+		Description: "ID of the domain reserved for this endpoint.",
 	}
+	resp.Schema = s
 }
 
 func (d *cloudEndpointDataSource) Configure(_ context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {

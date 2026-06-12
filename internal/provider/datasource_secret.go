@@ -10,6 +10,7 @@ import (
 
 	ngrok "github.com/ngrok/ngrok-api-go/v9"
 	"github.com/ngrok/ngrok-api-go/v9/secrets"
+	"github.com/ngrok/terraform-provider-ngrok/v2/internal/datasource_secret"
 )
 
 var _ datasource.DataSource = &secretDataSource{}
@@ -40,57 +41,38 @@ func (d *secretDataSource) Metadata(_ context.Context, req datasource.MetadataRe
 	resp.TypeName = req.ProviderTypeName + "_secret"
 }
 
-func (d *secretDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
-	resp.Schema = schema.Schema{
-		Description: "Use this data source to look up a secret by ID or name.",
-		Attributes: map[string]schema.Attribute{
-			"id": schema.StringAttribute{
-				Description: "Unique secret resource identifier. Provide either id or name.",
-				Optional:    true,
-				Computed:    true,
-			},
-			"name": schema.StringAttribute{
-				Description: "Human-readable name of the secret. Provide either id or name.",
-				Optional:    true,
-				Computed:    true,
-			},
-			"description": schema.StringAttribute{
-				Description: "Human-readable description of what this secret is used for.",
-				Computed:    true,
-			},
-			"metadata": schema.StringAttribute{
-				Description: "Arbitrary user-defined machine-readable data of this secret.",
-				Computed:    true,
-			},
-			"vault_id": schema.StringAttribute{
-				Description: "ID of the vault that this secret belongs to.",
-				Computed:    true,
-			},
-			"vault_name": schema.StringAttribute{
-				Description: "Human-readable name of the vault that this secret belongs to.",
-				Computed:    true,
-			},
-			"uri": schema.StringAttribute{
-				Description: "URI of the secret API resource.",
-				Computed:    true,
-			},
-			"created_at": schema.StringAttribute{
-				Description: "Timestamp when the secret was created, RFC 3339 format.",
-				Computed:    true,
-			},
-			"updated_at": schema.StringAttribute{
-				Description: "Timestamp when the secret was last updated, RFC 3339 format.",
-				Computed:    true,
-			},
-			"created_by_id": schema.StringAttribute{
-				Description: "The ID of the user or bot that created the secret.",
-				Computed:    true,
-			},
-			"last_updated_by_id": schema.StringAttribute{
-				Description: "The ID of the user or bot that last updated the secret.",
-				Computed:    true,
-			},
-		},
+func (d *secretDataSource) Schema(ctx context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
+	resp.Schema = datasource_secret.SecretDataSourceSchema(ctx)
+	resp.Schema.Description = "Use this data source to look up a secret by ID or name."
+
+	attrs := resp.Schema.Attributes
+
+	attrs["id"] = schema.StringAttribute{
+		Description: "Unique secret resource identifier. Provide either id or name.",
+		Optional:    true,
+		Computed:    true,
+	}
+	attrs["name"] = schema.StringAttribute{
+		Description: "Human-readable name of the secret. Provide either id or name.",
+		Optional:    true,
+		Computed:    true,
+	}
+
+	delete(attrs, "created_by")
+	delete(attrs, "last_updated_by")
+	delete(attrs, "vault")
+
+	attrs["vault_id"] = schema.StringAttribute{
+		Description: "ID of the vault that this secret belongs to.",
+		Computed:    true,
+	}
+	attrs["created_by_id"] = schema.StringAttribute{
+		Description: "The ID of the user or bot that created the secret.",
+		Computed:    true,
+	}
+	attrs["last_updated_by_id"] = schema.StringAttribute{
+		Description: "The ID of the user or bot that last updated the secret.",
+		Computed:    true,
 	}
 }
 

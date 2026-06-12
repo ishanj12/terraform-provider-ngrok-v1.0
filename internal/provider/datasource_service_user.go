@@ -5,10 +5,10 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
-	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
 	ngrok "github.com/ngrok/ngrok-api-go/v9"
+	"github.com/ngrok/terraform-provider-ngrok/v2/internal/datasource_service_user"
 	"github.com/ngrok/ngrok-api-go/v9/bot_users"
 )
 
@@ -34,32 +34,8 @@ func (d *serviceUserDataSource) Metadata(_ context.Context, req datasource.Metad
 	resp.TypeName = req.ProviderTypeName + "_service_user"
 }
 
-func (d *serviceUserDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
-	resp.Schema = schema.Schema{
-		Description: "Use this data source to look up a service user by ID.",
-		Attributes: map[string]schema.Attribute{
-			"id": schema.StringAttribute{
-				Description: "Unique service user resource identifier.",
-				Required:    true,
-			},
-			"name": schema.StringAttribute{
-				Description: "Human-readable name used to identify the service user.",
-				Computed:    true,
-			},
-			"active": schema.BoolAttribute{
-				Description: "Whether or not the service user is active.",
-				Computed:    true,
-			},
-			"uri": schema.StringAttribute{
-				Description: "URI of the service user API resource.",
-				Computed:    true,
-			},
-			"created_at": schema.StringAttribute{
-				Description: "Timestamp when the service user was created, RFC 3339 format.",
-				Computed:    true,
-			},
-		},
-	}
+func (d *serviceUserDataSource) Schema(ctx context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
+	resp.Schema = datasource_service_user.ServiceUserDataSourceSchema(ctx)
 }
 
 func (d *serviceUserDataSource) Configure(_ context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {

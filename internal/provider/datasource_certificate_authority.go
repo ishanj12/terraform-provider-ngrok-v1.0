@@ -5,10 +5,10 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
-	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
 	ngrok "github.com/ngrok/ngrok-api-go/v9"
+	"github.com/ngrok/terraform-provider-ngrok/v2/internal/datasource_certificate_authority"
 	"github.com/ngrok/ngrok-api-go/v9/certificate_authorities"
 )
 
@@ -40,58 +40,8 @@ func (d *certificateAuthorityDataSource) Metadata(_ context.Context, req datasou
 	resp.TypeName = req.ProviderTypeName + "_certificate_authority"
 }
 
-func (d *certificateAuthorityDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
-	resp.Schema = schema.Schema{
-		Description: "Use this data source to look up a Certificate Authority by ID.",
-		Attributes: map[string]schema.Attribute{
-			"id": schema.StringAttribute{
-				Description: "Unique identifier for this Certificate Authority.",
-				Required:    true,
-			},
-			"uri": schema.StringAttribute{
-				Description: "URI of the Certificate Authority API resource.",
-				Computed:    true,
-			},
-			"created_at": schema.StringAttribute{
-				Description: "Timestamp when the Certificate Authority was created, RFC 3339 format.",
-				Computed:    true,
-			},
-			"description": schema.StringAttribute{
-				Description: "Human-readable description of this Certificate Authority.",
-				Computed:    true,
-			},
-			"metadata": schema.StringAttribute{
-				Description: "Arbitrary user-defined machine-readable data of this Certificate Authority.",
-				Computed:    true,
-			},
-			"ca_pem": schema.StringAttribute{
-				Description: "Raw PEM of the Certificate Authority.",
-				Computed:    true,
-			},
-			"subject_common_name": schema.StringAttribute{
-				Description: "Subject common name of the Certificate Authority.",
-				Computed:    true,
-			},
-			"not_before": schema.StringAttribute{
-				Description: "Timestamp when this Certificate Authority becomes valid, RFC 3339 format.",
-				Computed:    true,
-			},
-			"not_after": schema.StringAttribute{
-				Description: "Timestamp when this Certificate Authority becomes invalid, RFC 3339 format.",
-				Computed:    true,
-			},
-			"key_usages": schema.ListAttribute{
-				Description: "Set of actions the private key of this Certificate Authority can be used for.",
-				Computed:    true,
-				ElementType: types.StringType,
-			},
-			"extended_key_usages": schema.ListAttribute{
-				Description: "Extended set of actions the private key of this Certificate Authority can be used for.",
-				Computed:    true,
-				ElementType: types.StringType,
-			},
-		},
-	}
+func (d *certificateAuthorityDataSource) Schema(ctx context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
+	resp.Schema = datasource_certificate_authority.CertificateAuthorityDataSourceSchema(ctx)
 }
 
 func (d *certificateAuthorityDataSource) Configure(_ context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {

@@ -11,6 +11,7 @@ import (
 
 	ngrok "github.com/ngrok/ngrok-api-go/v9"
 	"github.com/ngrok/ngrok-api-go/v9/agent_ingresses"
+	"github.com/ngrok/terraform-provider-ngrok/v2/internal/datasource_agent_ingress"
 )
 
 var _ datasource.DataSource = &agentIngressDataSource{}
@@ -39,58 +40,35 @@ func (d *agentIngressDataSource) Metadata(_ context.Context, req datasource.Meta
 	resp.TypeName = req.ProviderTypeName + "_agent_ingress"
 }
 
-func (d *agentIngressDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
-	resp.Schema = schema.Schema{
-		Description: "Use this data source to look up an agent ingress by ID or domain.",
+func (d *agentIngressDataSource) Schema(ctx context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
+	resp.Schema = datasource_agent_ingress.AgentIngressDataSourceSchema(ctx)
+	resp.Schema.Description = "Use this data source to look up an agent ingress by ID or domain."
+
+	attrs := resp.Schema.Attributes
+
+	attrs["id"] = schema.StringAttribute{
+		Description: "Unique agent ingress resource identifier. Provide either id or domain.",
+		Optional:    true,
+		Computed:    true,
+	}
+	attrs["domain"] = schema.StringAttribute{
+		Description: "The domain of the agent ingress. Provide either id or domain.",
+		Optional:    true,
+		Computed:    true,
+	}
+
+	delete(attrs, "certificate_management_status")
+
+	attrs["certificate_management_policy"] = schema.SingleNestedAttribute{
+		Description: "Configuration for automatic management of TLS certificates for this domain.",
+		Computed:    true,
 		Attributes: map[string]schema.Attribute{
-			"id": schema.StringAttribute{
-				Description: "Unique agent ingress resource identifier. Provide either id or domain.",
-				Optional:    true,
+			"authority": schema.StringAttribute{
+				Description: "Certificate authority to request certificates from.",
 				Computed:    true,
 			},
-			"domain": schema.StringAttribute{
-				Description: "The domain of the agent ingress. Provide either id or domain.",
-				Optional:    true,
-				Computed:    true,
-			},
-			"description": schema.StringAttribute{
-				Description: "Human-readable description of the use of this Agent Ingress.",
-				Computed:    true,
-			},
-			"metadata": schema.StringAttribute{
-				Description: "Arbitrary user-defined machine-readable data of this Agent Ingress.",
-				Computed:    true,
-			},
-			"ns_targets": schema.ListAttribute{
-				Description: "A list of target values to use as the values of NS records for the domain property.",
-				Computed:    true,
-				ElementType: types.StringType,
-			},
-			"region_domains": schema.ListAttribute{
-				Description: "A list of regional agent ingress domains that are subdomains of the value of domain.",
-				Computed:    true,
-				ElementType: types.StringType,
-			},
-			"certificate_management_policy": schema.SingleNestedAttribute{
-				Description: "Configuration for automatic management of TLS certificates for this domain.",
-				Computed:    true,
-				Attributes: map[string]schema.Attribute{
-					"authority": schema.StringAttribute{
-						Description: "Certificate authority to request certificates from.",
-						Computed:    true,
-					},
-					"private_key_type": schema.StringAttribute{
-						Description: "Type of private key to use when requesting certificates.",
-						Computed:    true,
-					},
-				},
-			},
-			"uri": schema.StringAttribute{
-				Description: "URI of the agent ingress API resource.",
-				Computed:    true,
-			},
-			"created_at": schema.StringAttribute{
-				Description: "Timestamp when the agent ingress was created, RFC 3339 format.",
+			"private_key_type": schema.StringAttribute{
+				Description: "Type of private key to use when requesting certificates.",
 				Computed:    true,
 			},
 		},

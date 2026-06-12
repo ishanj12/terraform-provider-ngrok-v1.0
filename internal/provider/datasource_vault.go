@@ -10,6 +10,7 @@ import (
 
 	ngrok "github.com/ngrok/ngrok-api-go/v9"
 	"github.com/ngrok/ngrok-api-go/v9/vaults"
+	"github.com/ngrok/terraform-provider-ngrok/v2/internal/datasource_vault"
 )
 
 var _ datasource.DataSource = &vaultDataSource{}
@@ -38,50 +39,18 @@ func (d *vaultDataSource) Metadata(_ context.Context, req datasource.MetadataReq
 	resp.TypeName = req.ProviderTypeName + "_vault"
 }
 
-func (d *vaultDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
-	resp.Schema = schema.Schema{
-		Description: "Use this data source to look up a vault by ID or name.",
-		Attributes: map[string]schema.Attribute{
-			"id": schema.StringAttribute{
-				Description: "Unique vault resource identifier. Provide either id or name.",
-				Optional:    true,
-				Computed:    true,
-			},
-			"name": schema.StringAttribute{
-				Description: "Human-readable name of the vault. Provide either id or name.",
-				Optional:    true,
-				Computed:    true,
-			},
-			"description": schema.StringAttribute{
-				Description: "Human-readable description of what this vault is used for.",
-				Computed:    true,
-			},
-			"metadata": schema.StringAttribute{
-				Description: "Arbitrary user-defined machine-readable data of this vault.",
-				Computed:    true,
-			},
-			"uri": schema.StringAttribute{
-				Description: "URI of the vault API resource.",
-				Computed:    true,
-			},
-			"created_at": schema.StringAttribute{
-				Description: "Timestamp when the vault was created, RFC 3339 format.",
-				Computed:    true,
-			},
-			"updated_at": schema.StringAttribute{
-				Description: "Timestamp when the vault was last updated, RFC 3339 format.",
-				Computed:    true,
-			},
-			"created_by": schema.StringAttribute{
-				Description: "The user or bot that created the vault.",
-				Computed:    true,
-			},
-			"last_updated_by": schema.StringAttribute{
-				Description: "The user or bot that last updated the vault.",
-				Computed:    true,
-			},
-		},
-	}
+func (d *vaultDataSource) Schema(ctx context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
+	s := datasource_vault.VaultDataSourceSchema(ctx)
+	attrs := s.Attributes
+	idAttr := attrs["id"].(schema.StringAttribute)
+	idAttr.Required = false
+	idAttr.Optional = true
+	idAttr.Computed = true
+	attrs["id"] = idAttr
+	nameAttr := attrs["name"].(schema.StringAttribute)
+	nameAttr.Optional = true
+	attrs["name"] = nameAttr
+	resp.Schema = s
 }
 
 func (d *vaultDataSource) Configure(_ context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {

@@ -5,10 +5,10 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
-	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
 	ngrok "github.com/ngrok/ngrok-api-go/v9"
+	"github.com/ngrok/terraform-provider-ngrok/v2/internal/datasource_ssh_certificate_authority"
 	"github.com/ngrok/ngrok-api-go/v9/ssh_certificate_authorities"
 )
 
@@ -36,40 +36,8 @@ func (d *sshCertificateAuthorityDataSource) Metadata(_ context.Context, req data
 	resp.TypeName = req.ProviderTypeName + "_ssh_certificate_authority"
 }
 
-func (d *sshCertificateAuthorityDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
-	resp.Schema = schema.Schema{
-		Description: "Use this data source to look up an SSH Certificate Authority by ID.",
-		Attributes: map[string]schema.Attribute{
-			"id": schema.StringAttribute{
-				Description: "Unique identifier for this SSH Certificate Authority.",
-				Required:    true,
-			},
-			"uri": schema.StringAttribute{
-				Description: "URI of the SSH Certificate Authority API resource.",
-				Computed:    true,
-			},
-			"created_at": schema.StringAttribute{
-				Description: "Timestamp when the SSH Certificate Authority was created, RFC 3339 format.",
-				Computed:    true,
-			},
-			"description": schema.StringAttribute{
-				Description: "Human-readable description of this SSH Certificate Authority.",
-				Computed:    true,
-			},
-			"metadata": schema.StringAttribute{
-				Description: "Arbitrary user-defined machine-readable data of this SSH Certificate Authority.",
-				Computed:    true,
-			},
-			"public_key": schema.StringAttribute{
-				Description: "Raw public key of this SSH Certificate Authority.",
-				Computed:    true,
-			},
-			"key_type": schema.StringAttribute{
-				Description: "The type of private key for this SSH Certificate Authority.",
-				Computed:    true,
-			},
-		},
-	}
+func (d *sshCertificateAuthorityDataSource) Schema(ctx context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
+	resp.Schema = datasource_ssh_certificate_authority.SshCertificateAuthorityDataSourceSchema(ctx)
 }
 
 func (d *sshCertificateAuthorityDataSource) Configure(_ context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {

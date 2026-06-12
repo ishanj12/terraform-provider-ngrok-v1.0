@@ -11,6 +11,7 @@ import (
 
 	ngrok "github.com/ngrok/ngrok-api-go/v9"
 	"github.com/ngrok/ngrok-api-go/v9/event_subscriptions"
+	"github.com/ngrok/terraform-provider-ngrok/v2/internal/datasource_event_subscription"
 )
 
 var _ datasource.DataSource = &eventSubscriptionDataSource{}
@@ -37,50 +38,32 @@ func (d *eventSubscriptionDataSource) Metadata(_ context.Context, req datasource
 	resp.TypeName = req.ProviderTypeName + "_event_subscription"
 }
 
-func (d *eventSubscriptionDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
-	resp.Schema = schema.Schema{
-		Description: "Use this data source to look up an event subscription by ID.",
-		Attributes: map[string]schema.Attribute{
-			"id": schema.StringAttribute{
-				Description: "Unique event subscription resource identifier.",
-				Required:    true,
-			},
-			"description": schema.StringAttribute{
-				Description: "Arbitrary customer supplied information intended to be human readable.",
-				Computed:    true,
-			},
-			"metadata": schema.StringAttribute{
-				Description: "Arbitrary customer supplied information intended to be machine readable.",
-				Computed:    true,
-			},
-			"sources": schema.ListNestedAttribute{
-				Description: "Sources containing the types for which this event subscription will trigger.",
-				Computed:    true,
-				NestedObject: schema.NestedAttributeObject{
-					Attributes: map[string]schema.Attribute{
-						"type": schema.StringAttribute{
-							Description: "Type of event for which an event subscription will trigger.",
-							Computed:    true,
-						},
-						"uri": schema.StringAttribute{
-							Description: "URI of the Event Source API resource.",
-							Computed:    true,
-						},
-					},
+func (d *eventSubscriptionDataSource) Schema(ctx context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
+	resp.Schema = datasource_event_subscription.EventSubscriptionDataSourceSchema(ctx)
+	resp.Schema.Description = "Use this data source to look up an event subscription by ID."
+
+	attrs := resp.Schema.Attributes
+
+	delete(attrs, "destinations")
+	attrs["destination_ids"] = schema.ListAttribute{
+		Description: "A list of Event Destination IDs which should be used for this Event Subscription.",
+		Computed:    true,
+		ElementType: types.StringType,
+	}
+
+	attrs["sources"] = schema.ListNestedAttribute{
+		Description: "Sources containing the types for which this event subscription will trigger.",
+		Computed:    true,
+		NestedObject: schema.NestedAttributeObject{
+			Attributes: map[string]schema.Attribute{
+				"type": schema.StringAttribute{
+					Description: "Type of event for which an event subscription will trigger.",
+					Computed:    true,
 				},
-			},
-			"destination_ids": schema.ListAttribute{
-				Description: "A list of Event Destination IDs which should be used for this Event Subscription.",
-				Computed:    true,
-				ElementType: types.StringType,
-			},
-			"uri": schema.StringAttribute{
-				Description: "URI of the Event Subscription API resource.",
-				Computed:    true,
-			},
-			"created_at": schema.StringAttribute{
-				Description: "Timestamp when the Event Subscription was created, RFC 3339 format.",
-				Computed:    true,
+				"uri": schema.StringAttribute{
+					Description: "URI of the Event Source API resource.",
+					Computed:    true,
+				},
 			},
 		},
 	}

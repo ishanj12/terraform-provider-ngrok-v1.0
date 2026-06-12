@@ -5,11 +5,11 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
-	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
 	ngrok "github.com/ngrok/ngrok-api-go/v9"
 	"github.com/ngrok/ngrok-api-go/v9/credentials"
+	"github.com/ngrok/terraform-provider-ngrok/v2/internal/datasource_credential"
 )
 
 var _ datasource.DataSource = &credentialDataSource{}
@@ -36,41 +36,11 @@ func (d *credentialDataSource) Metadata(_ context.Context, req datasource.Metada
 	resp.TypeName = req.ProviderTypeName + "_credential"
 }
 
-func (d *credentialDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
-	resp.Schema = schema.Schema{
-		Description: "Use this data source to look up a tunnel credential by ID.",
-		Attributes: map[string]schema.Attribute{
-			"id": schema.StringAttribute{
-				Description: "Unique tunnel credential resource identifier.",
-				Required:    true,
-			},
-			"uri": schema.StringAttribute{
-				Description: "URI of the tunnel credential API resource.",
-				Computed:    true,
-			},
-			"created_at": schema.StringAttribute{
-				Description: "Timestamp when the tunnel credential was created, RFC 3339 format.",
-				Computed:    true,
-			},
-			"description": schema.StringAttribute{
-				Description: "Human-readable description of what this credential is used for.",
-				Computed:    true,
-			},
-			"metadata": schema.StringAttribute{
-				Description: "Arbitrary user-defined machine-readable data of this credential.",
-				Computed:    true,
-			},
-			"acl": schema.ListAttribute{
-				Description: "List of ACL rules applied to this credential.",
-				Computed:    true,
-				ElementType: types.StringType,
-			},
-			"owner_id": schema.StringAttribute{
-				Description: "The owner ID of the credential.",
-				Computed:    true,
-			},
-		},
-	}
+func (d *credentialDataSource) Schema(ctx context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
+	s := datasource_credential.CredentialDataSourceSchema(ctx)
+	attrs := s.Attributes
+	delete(attrs, "token")
+	resp.Schema = s
 }
 
 func (d *credentialDataSource) Configure(_ context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {

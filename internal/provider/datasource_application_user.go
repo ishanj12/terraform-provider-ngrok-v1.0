@@ -5,11 +5,11 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
-	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
 	ngrok "github.com/ngrok/ngrok-api-go/v9"
 	"github.com/ngrok/ngrok-api-go/v9/application_users"
+	"github.com/ngrok/terraform-provider-ngrok/v2/internal/datasource_application_user"
 )
 
 var _ datasource.DataSource = &applicationUserDataSource{}
@@ -38,48 +38,11 @@ func (d *applicationUserDataSource) Metadata(_ context.Context, req datasource.M
 	resp.TypeName = req.ProviderTypeName + "_application_user"
 }
 
-func (d *applicationUserDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
-	resp.Schema = schema.Schema{
-		Description: "Use this data source to look up an application user by ID.",
-		Attributes: map[string]schema.Attribute{
-			"id": schema.StringAttribute{
-				Description: "Unique application user resource identifier.",
-				Required:    true,
-			},
-			"uri": schema.StringAttribute{
-				Description: "URI of the application user API resource.",
-				Computed:    true,
-			},
-			"provider_user_id": schema.StringAttribute{
-				Description: "The user ID from the identity provider.",
-				Computed:    true,
-			},
-			"username": schema.StringAttribute{
-				Description: "The username of the application user.",
-				Computed:    true,
-			},
-			"email": schema.StringAttribute{
-				Description: "The email address of the application user.",
-				Computed:    true,
-			},
-			"name": schema.StringAttribute{
-				Description: "The name of the application user.",
-				Computed:    true,
-			},
-			"created_at": schema.StringAttribute{
-				Description: "Timestamp when the application user was created, in RFC 3339 format.",
-				Computed:    true,
-			},
-			"last_active": schema.StringAttribute{
-				Description: "Timestamp when the application user was last active, in RFC 3339 format.",
-				Computed:    true,
-			},
-			"last_login": schema.StringAttribute{
-				Description: "Timestamp when the application user last logged in, in RFC 3339 format.",
-				Computed:    true,
-			},
-		},
-	}
+func (d *applicationUserDataSource) Schema(ctx context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
+	s := datasource_application_user.ApplicationUserDataSourceSchema(ctx)
+	attrs := s.Attributes
+	delete(attrs, "identity_provider")
+	resp.Schema = s
 }
 
 func (d *applicationUserDataSource) Configure(_ context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {

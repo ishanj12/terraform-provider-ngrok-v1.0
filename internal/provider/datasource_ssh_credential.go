@@ -5,10 +5,10 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
-	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
 	ngrok "github.com/ngrok/ngrok-api-go/v9"
+	"github.com/ngrok/terraform-provider-ngrok/v2/internal/datasource_ssh_credential"
 	"github.com/ngrok/ngrok-api-go/v9/ssh_credentials"
 )
 
@@ -37,45 +37,8 @@ func (d *sshCredentialDataSource) Metadata(_ context.Context, req datasource.Met
 	resp.TypeName = req.ProviderTypeName + "_ssh_credential"
 }
 
-func (d *sshCredentialDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
-	resp.Schema = schema.Schema{
-		Description: "Use this data source to look up an SSH Credential by ID.",
-		Attributes: map[string]schema.Attribute{
-			"id": schema.StringAttribute{
-				Description: "Unique SSH credential resource identifier.",
-				Required:    true,
-			},
-			"uri": schema.StringAttribute{
-				Description: "URI of the SSH credential API resource.",
-				Computed:    true,
-			},
-			"created_at": schema.StringAttribute{
-				Description: "Timestamp when the SSH credential was created, RFC 3339 format.",
-				Computed:    true,
-			},
-			"description": schema.StringAttribute{
-				Description: "Human-readable description of who or what will use the SSH credential to authenticate.",
-				Computed:    true,
-			},
-			"metadata": schema.StringAttribute{
-				Description: "Arbitrary user-defined machine-readable data of this SSH credential.",
-				Computed:    true,
-			},
-			"public_key": schema.StringAttribute{
-				Description: "The PEM-encoded public key of the SSH keypair that will be used to authenticate.",
-				Computed:    true,
-			},
-			"acl": schema.ListAttribute{
-				Description: "Optional list of ACL rules.",
-				Computed:    true,
-				ElementType: types.StringType,
-			},
-			"owner_id": schema.StringAttribute{
-				Description: "The owner of this SSH credential.",
-				Computed:    true,
-			},
-		},
-	}
+func (d *sshCredentialDataSource) Schema(ctx context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
+	resp.Schema = datasource_ssh_credential.SshCredentialDataSourceSchema(ctx)
 }
 
 func (d *sshCredentialDataSource) Configure(_ context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
