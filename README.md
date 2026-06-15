@@ -57,7 +57,7 @@ Configure the API key via the `NGROK_API_KEY` environment variable or in the pro
 | `ngrok_ip_policy` | IP policy groups |
 | `ngrok_ip_policy_rule` | IP policy CIDR rules |
 | `ngrok_ip_restriction` | IP restrictions on API/dashboard/agent/endpoints |
-| `ngrok_kubernetes_operator` | Kubernetes operator registration |
+
 | `ngrok_reserved_addr` | Reserved TCP addresses |
 | `ngrok_reserved_domain` | Reserved domains |
 | `ngrok_secret` | Secrets stored in vaults |
@@ -88,7 +88,7 @@ There are also **read-only data sources** with no corresponding resource:
 - **Terraform Plugin Framework** replaces legacy SDKv2
 - **Official `ngrok-api-go/v9` client** replaces hand-rolled REST client
 - **Cloud endpoints** replace edges — all edge, backend, and endpoint configuration resources are removed
-- **New resources**: `ngrok_cloud_endpoint`, `ngrok_kubernetes_operator`, `ngrok_vault`, `ngrok_secret`
+- **New resources**: `ngrok_cloud_endpoint`, `ngrok_vault`, `ngrok_secret`
 - **Data sources** for every resource, plus read-only data sources for sessions and application users
 - **Import support** for every resource
 - **OpenAPI-driven code generation** for schema definitions — see [Project Structure](#project-structure)

@@ -114,7 +114,7 @@ func (p *ngrokProvider) Resources(_ context.Context) []func() resource.Resource 
 		NewSSHCredentialResource,
 		NewSSHHostCertificateResource,
 		NewSSHUserCertificateResource,
-		NewKubernetesOperatorResource,
+
 	}
 }
 
@@ -143,6 +143,6 @@ func (p *ngrokProvider) DataSources(_ context.Context) []func() datasource.DataS
 		NewTunnelSessionDataSource,
 		NewApplicationSessionDataSource,
 		NewApplicationUserDataSource,
-		NewKubernetesOperatorDataSource,
+
 	}
 }
