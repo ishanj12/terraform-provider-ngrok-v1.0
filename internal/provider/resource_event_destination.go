@@ -9,13 +9,12 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 
 	ngrok "github.com/ngrok/ngrok-api-go/v9"
 	"github.com/ngrok/ngrok-api-go/v9/event_destinations"
+	"github.com/ngrok/terraform-provider-ngrok-v1.0/internal/resource_event_destination"
 )
 
 var (
@@ -79,109 +78,72 @@ func awsAuthSchema() schema.SingleNestedAttribute {
 	}
 }
 
-func (r *eventDestinationResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
-	resp.Schema = schema.Schema{
-		Description: "Event Destinations encapsulate where and how to send events.",
+func (r *eventDestinationResource) Schema(ctx context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
+	s := resource_event_destination.EventDestinationResourceSchema(ctx)
+	attrs := s.Attributes
+
+	// Add target attribute (excluded from codegen due to duplicate CustomType collision)
+	attrs["target"] = schema.SingleNestedAttribute{
+		Description: "An object that encapsulates where and how to send your events.",
+		Optional:    true,
 		Attributes: map[string]schema.Attribute{
-			"id": schema.StringAttribute{
-				Description: "Unique event destination resource identifier.",
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"description": schema.StringAttribute{
-				Description: "Human-readable description of the Event Destination. Optional, max 255 bytes.",
-				Optional:    true,
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"metadata": schema.StringAttribute{
-				Description: "Arbitrary user-defined machine-readable data of this Event Destination. Optional, max 4096 bytes.",
-				Optional:    true,
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"format": schema.StringAttribute{
-				Description: "The output format to serialize events into when sending to their target. Currently the only accepted value is JSON.",
-				Optional:    true,
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"target": schema.SingleNestedAttribute{
-				Description: "An object that encapsulates where and how to send your events.",
+			"firehose": schema.SingleNestedAttribute{
+				Description: "Configuration used to send events to Amazon Kinesis Data Firehose.",
 				Optional:    true,
 				Attributes: map[string]schema.Attribute{
-					"firehose": schema.SingleNestedAttribute{
-						Description: "Configuration used to send events to Amazon Kinesis Data Firehose.",
-						Optional:    true,
-						Attributes: map[string]schema.Attribute{
-							"auth":               awsAuthSchema(),
-							"delivery_stream_arn": schema.StringAttribute{Description: "An Amazon Resource Name specifying the Firehose delivery stream.", Required: true},
-						},
-					},
-					"kinesis": schema.SingleNestedAttribute{
-						Description: "Configuration used to send events to Amazon Kinesis.",
-						Optional:    true,
-						Attributes: map[string]schema.Attribute{
-							"auth":       awsAuthSchema(),
-							"stream_arn": schema.StringAttribute{Description: "An Amazon Resource Name specifying the Kinesis stream.", Required: true},
-						},
-					},
-					"cloudwatch_logs": schema.SingleNestedAttribute{
-						Description: "Configuration used to send events to Amazon CloudWatch Logs.",
-						Optional:    true,
-						Attributes: map[string]schema.Attribute{
-							"auth":          awsAuthSchema(),
-							"log_group_arn": schema.StringAttribute{Description: "An Amazon Resource Name specifying the CloudWatch Logs group.", Required: true},
-						},
-					},
-					"datadog": schema.SingleNestedAttribute{
-						Description: "Configuration used to send events to Datadog.",
-						Optional:    true,
-						Attributes: map[string]schema.Attribute{
-							"api_key": schema.StringAttribute{Description: "Datadog API key to use.", Optional: true, Sensitive: true},
-							"ddtags":  schema.StringAttribute{Description: "Tags to send with the event.", Optional: true},
-							"service": schema.StringAttribute{Description: "Service name to send with the event.", Optional: true},
-							"ddsite":  schema.StringAttribute{Description: "Datadog site to send event to.", Optional: true},
-						},
-					},
-					"azure_logs_ingestion": schema.SingleNestedAttribute{
-						Description: "Configuration used to send events to Azure Logs Ingestion.",
-						Optional:    true,
-						Attributes: map[string]schema.Attribute{
-							"tenant_id":                  schema.StringAttribute{Description: "Tenant ID for the Azure account.", Required: true},
-							"client_id":                  schema.StringAttribute{Description: "Client ID for the application client.", Required: true},
-							"client_secret":              schema.StringAttribute{Description: "Client Secret for the application client.", Required: true, Sensitive: true},
-							"logs_ingestion_uri":         schema.StringAttribute{Description: "Data collection endpoint logs ingestion URI.", Required: true},
-							"data_collection_rule_id":    schema.StringAttribute{Description: "Data collection rule immutable ID.", Required: true},
-							"data_collection_stream_name": schema.StringAttribute{Description: "Data collection stream name to use as destination.", Required: true},
-						},
-					},
+					"auth":               awsAuthSchema(),
+					"delivery_stream_arn": schema.StringAttribute{Description: "An Amazon Resource Name specifying the Firehose delivery stream.", Required: true},
 				},
 			},
-			"uri": schema.StringAttribute{
-				Description: "URI of the Event Destination API resource.",
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
+			"kinesis": schema.SingleNestedAttribute{
+				Description: "Configuration used to send events to Amazon Kinesis.",
+				Optional:    true,
+				Attributes: map[string]schema.Attribute{
+					"auth":       awsAuthSchema(),
+					"stream_arn": schema.StringAttribute{Description: "An Amazon Resource Name specifying the Kinesis stream.", Required: true},
 				},
 			},
-			"created_at": schema.StringAttribute{
-				Description: "Timestamp when the Event Destination was created, RFC 3339 format.",
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
+			"cloudwatch_logs": schema.SingleNestedAttribute{
+				Description: "Configuration used to send events to Amazon CloudWatch Logs.",
+				Optional:    true,
+				Attributes: map[string]schema.Attribute{
+					"auth":          awsAuthSchema(),
+					"log_group_arn": schema.StringAttribute{Description: "An Amazon Resource Name specifying the CloudWatch Logs group.", Required: true},
+				},
+			},
+			"datadog": schema.SingleNestedAttribute{
+				Description: "Configuration used to send events to Datadog.",
+				Optional:    true,
+				Attributes: map[string]schema.Attribute{
+					"api_key": schema.StringAttribute{Description: "Datadog API key to use.", Optional: true, Sensitive: true},
+					"ddtags":  schema.StringAttribute{Description: "Tags to send with the event.", Optional: true},
+					"service": schema.StringAttribute{Description: "Service name to send with the event.", Optional: true},
+					"ddsite":  schema.StringAttribute{Description: "Datadog site to send event to.", Optional: true},
+				},
+			},
+			"azure_logs_ingestion": schema.SingleNestedAttribute{
+				Description: "Configuration used to send events to Azure Logs Ingestion.",
+				Optional:    true,
+				Attributes: map[string]schema.Attribute{
+					"tenant_id":                  schema.StringAttribute{Description: "Tenant ID for the Azure account.", Required: true},
+					"client_id":                  schema.StringAttribute{Description: "Client ID for the application client.", Required: true},
+					"client_secret":              schema.StringAttribute{Description: "Client Secret for the application client.", Required: true, Sensitive: true},
+					"logs_ingestion_uri":         schema.StringAttribute{Description: "Data collection endpoint logs ingestion URI.", Required: true},
+					"data_collection_rule_id":    schema.StringAttribute{Description: "Data collection rule immutable ID.", Required: true},
+					"data_collection_stream_name": schema.StringAttribute{Description: "Data collection stream name to use as destination.", Required: true},
 				},
 			},
 		},
 	}
+
+	addStringPlanModifiers(attrs, "id", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "description", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "metadata", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "format", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "uri", useStateForUnknownString())
+	addStringPlanModifiers(attrs, "created_at", useStateForUnknownString())
+
+	resp.Schema = s
 }
 
 func (r *eventDestinationResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {

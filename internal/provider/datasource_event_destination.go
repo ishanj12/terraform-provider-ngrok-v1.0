@@ -11,6 +11,7 @@ import (
 
 	ngrok "github.com/ngrok/ngrok-api-go/v9"
 	"github.com/ngrok/ngrok-api-go/v9/event_destinations"
+	"github.com/ngrok/terraform-provider-ngrok-v1.0/internal/datasource_event_destination"
 )
 
 var _ datasource.DataSource = &eventDestinationDataSource{}
@@ -61,85 +62,68 @@ func awsAuthDataSourceSchema() schema.SingleNestedAttribute {
 	}
 }
 
-func (d *eventDestinationDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
-	resp.Schema = schema.Schema{
-		Description: "Use this data source to look up an event destination by ID.",
+func (d *eventDestinationDataSource) Schema(ctx context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
+	resp.Schema = datasource_event_destination.EventDestinationDataSourceSchema(ctx)
+	resp.Schema.Description = "Use this data source to look up an event destination by ID."
+
+	attrs := resp.Schema.Attributes
+
+	// Make id required for lookup
+	attrs["id"] = schema.StringAttribute{
+		Description: "Unique event destination resource identifier.",
+		Required:    true,
+	}
+
+	// Add target attribute (excluded from codegen due to duplicate CustomType collision)
+	attrs["target"] = schema.SingleNestedAttribute{
+		Description: "An object that encapsulates where and how to send your events.",
+		Computed:    true,
 		Attributes: map[string]schema.Attribute{
-			"id": schema.StringAttribute{
-				Description: "Unique event destination resource identifier.",
-				Required:    true,
-			},
-			"description": schema.StringAttribute{
-				Description: "Human-readable description of the Event Destination.",
-				Computed:    true,
-			},
-			"metadata": schema.StringAttribute{
-				Description: "Arbitrary user-defined machine-readable data of this Event Destination.",
-				Computed:    true,
-			},
-			"format": schema.StringAttribute{
-				Description: "The output format to serialize events into.",
-				Computed:    true,
-			},
-			"target": schema.SingleNestedAttribute{
-				Description: "An object that encapsulates where and how to send your events.",
+			"firehose": schema.SingleNestedAttribute{
+				Description: "Configuration used to send events to Amazon Kinesis Data Firehose.",
 				Computed:    true,
 				Attributes: map[string]schema.Attribute{
-					"firehose": schema.SingleNestedAttribute{
-						Description: "Configuration used to send events to Amazon Kinesis Data Firehose.",
-						Computed:    true,
-						Attributes: map[string]schema.Attribute{
-							"auth":               awsAuthDataSourceSchema(),
-							"delivery_stream_arn": schema.StringAttribute{Description: "Firehose delivery stream ARN.", Computed: true},
-						},
-					},
-					"kinesis": schema.SingleNestedAttribute{
-						Description: "Configuration used to send events to Amazon Kinesis.",
-						Computed:    true,
-						Attributes: map[string]schema.Attribute{
-							"auth":       awsAuthDataSourceSchema(),
-							"stream_arn": schema.StringAttribute{Description: "Kinesis stream ARN.", Computed: true},
-						},
-					},
-					"cloudwatch_logs": schema.SingleNestedAttribute{
-						Description: "Configuration used to send events to Amazon CloudWatch Logs.",
-						Computed:    true,
-						Attributes: map[string]schema.Attribute{
-							"auth":          awsAuthDataSourceSchema(),
-							"log_group_arn": schema.StringAttribute{Description: "CloudWatch Logs group ARN.", Computed: true},
-						},
-					},
-					"datadog": schema.SingleNestedAttribute{
-						Description: "Configuration used to send events to Datadog.",
-						Computed:    true,
-						Attributes: map[string]schema.Attribute{
-							"api_key": schema.StringAttribute{Description: "Datadog API key.", Computed: true, Sensitive: true},
-							"ddtags":  schema.StringAttribute{Description: "Tags to send with the event.", Computed: true},
-							"service": schema.StringAttribute{Description: "Service name.", Computed: true},
-							"ddsite":  schema.StringAttribute{Description: "Datadog site.", Computed: true},
-						},
-					},
-					"azure_logs_ingestion": schema.SingleNestedAttribute{
-						Description: "Configuration used to send events to Azure Logs Ingestion.",
-						Computed:    true,
-						Attributes: map[string]schema.Attribute{
-							"tenant_id":                  schema.StringAttribute{Description: "Tenant ID for the Azure account.", Computed: true},
-							"client_id":                  schema.StringAttribute{Description: "Client ID.", Computed: true},
-							"client_secret":              schema.StringAttribute{Description: "Client Secret.", Computed: true, Sensitive: true},
-							"logs_ingestion_uri":         schema.StringAttribute{Description: "Logs ingestion URI.", Computed: true},
-							"data_collection_rule_id":    schema.StringAttribute{Description: "Data collection rule ID.", Computed: true},
-							"data_collection_stream_name": schema.StringAttribute{Description: "Data collection stream name.", Computed: true},
-						},
-					},
+					"auth":               awsAuthDataSourceSchema(),
+					"delivery_stream_arn": schema.StringAttribute{Description: "Firehose delivery stream ARN.", Computed: true},
 				},
 			},
-			"uri": schema.StringAttribute{
-				Description: "URI of the Event Destination API resource.",
+			"kinesis": schema.SingleNestedAttribute{
+				Description: "Configuration used to send events to Amazon Kinesis.",
 				Computed:    true,
+				Attributes: map[string]schema.Attribute{
+					"auth":       awsAuthDataSourceSchema(),
+					"stream_arn": schema.StringAttribute{Description: "Kinesis stream ARN.", Computed: true},
+				},
 			},
-			"created_at": schema.StringAttribute{
-				Description: "Timestamp when the Event Destination was created, RFC 3339 format.",
+			"cloudwatch_logs": schema.SingleNestedAttribute{
+				Description: "Configuration used to send events to Amazon CloudWatch Logs.",
 				Computed:    true,
+				Attributes: map[string]schema.Attribute{
+					"auth":          awsAuthDataSourceSchema(),
+					"log_group_arn": schema.StringAttribute{Description: "CloudWatch Logs group ARN.", Computed: true},
+				},
+			},
+			"datadog": schema.SingleNestedAttribute{
+				Description: "Configuration used to send events to Datadog.",
+				Computed:    true,
+				Attributes: map[string]schema.Attribute{
+					"api_key": schema.StringAttribute{Description: "Datadog API key.", Computed: true, Sensitive: true},
+					"ddtags":  schema.StringAttribute{Description: "Tags to send with the event.", Computed: true},
+					"service": schema.StringAttribute{Description: "Service name.", Computed: true},
+					"ddsite":  schema.StringAttribute{Description: "Datadog site.", Computed: true},
+				},
+			},
+			"azure_logs_ingestion": schema.SingleNestedAttribute{
+				Description: "Configuration used to send events to Azure Logs Ingestion.",
+				Computed:    true,
+				Attributes: map[string]schema.Attribute{
+					"tenant_id":                  schema.StringAttribute{Description: "Tenant ID for the Azure account.", Computed: true},
+					"client_id":                  schema.StringAttribute{Description: "Client ID.", Computed: true},
+					"client_secret":              schema.StringAttribute{Description: "Client Secret.", Computed: true, Sensitive: true},
+					"logs_ingestion_uri":         schema.StringAttribute{Description: "Logs ingestion URI.", Computed: true},
+					"data_collection_rule_id":    schema.StringAttribute{Description: "Data collection rule ID.", Computed: true},
+					"data_collection_stream_name": schema.StringAttribute{Description: "Data collection stream name.", Computed: true},
+				},
 			},
 		},
 	}

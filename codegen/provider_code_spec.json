@@ -974,6 +974,55 @@
 			}
 		},
 		{
+			"name": "event_destination",
+			"schema": {
+				"attributes": [
+					{
+						"name": "id",
+						"string": {
+							"computed_optional_required": "required",
+							"description": "a resource identifier\n"
+						}
+					},
+					{
+						"name": "created_at",
+						"string": {
+							"computed_optional_required": "computed",
+							"description": "Timestamp when the Event Destination was created, RFC 3339 format.\n"
+						}
+					},
+					{
+						"name": "description",
+						"string": {
+							"computed_optional_required": "computed",
+							"description": "Human-readable description of the Event Destination. Optional, max 255 bytes.\n"
+						}
+					},
+					{
+						"name": "format",
+						"string": {
+							"computed_optional_required": "computed",
+							"description": "The output format you would like to serialize events into when sending to their target. Currently the only accepted value is `JSON`.\n"
+						}
+					},
+					{
+						"name": "metadata",
+						"string": {
+							"computed_optional_required": "computed",
+							"description": "Arbitrary user-defined machine-readable data of this Event Destination. Optional, max 4096 bytes.\n"
+						}
+					},
+					{
+						"name": "uri",
+						"string": {
+							"computed_optional_required": "computed",
+							"description": "URI of the Event Destination API resource.\n"
+						}
+					}
+				]
+			}
+		},
+		{
 			"name": "event_subscription",
 			"schema": {
 				"attributes": [
@@ -2986,6 +3035,55 @@
 						"string": {
 							"computed_optional_required": "computed",
 							"description": "URI of the tunnel credential API resource\n"
+						}
+					}
+				]
+			}
+		},
+		{
+			"name": "event_destination",
+			"schema": {
+				"attributes": [
+					{
+						"name": "description",
+						"string": {
+							"computed_optional_required": "computed_optional",
+							"description": "Human-readable description of the Event Destination. Optional, max 255 bytes.\n"
+						}
+					},
+					{
+						"name": "format",
+						"string": {
+							"computed_optional_required": "computed_optional",
+							"description": "The output format you would like to serialize events into when sending to their target. Currently the only accepted value is `JSON`.\n"
+						}
+					},
+					{
+						"name": "metadata",
+						"string": {
+							"computed_optional_required": "computed_optional",
+							"description": "Arbitrary user-defined machine-readable data of this Event Destination. Optional, max 4096 bytes.\n"
+						}
+					},
+					{
+						"name": "created_at",
+						"string": {
+							"computed_optional_required": "computed",
+							"description": "Timestamp when the Event Destination was created, RFC 3339 format.\n"
+						}
+					},
+					{
+						"name": "id",
+						"string": {
+							"computed_optional_required": "computed",
+							"description": "Unique identifier for this Event Destination.\n"
+						}
+					},
+					{
+						"name": "uri",
+						"string": {
+							"computed_optional_required": "computed",
+							"description": "URI of the Event Destination API resource.\n"
 						}
 					}
 				]

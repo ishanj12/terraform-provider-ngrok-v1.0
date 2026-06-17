@@ -72,8 +72,22 @@ resources:
       path: /endpoints/{id}
       method: DELETE
 
-  # event_destination: excluded — deeply nested target schema with duplicate
-  # Auth/Creds type names causes codegen collisions. Stays hand-written.
+  event_destination:
+    create:
+      path: /event_destinations
+      method: POST
+    read:
+      path: /event_destinations/{id}
+      method: GET
+    update:
+      path: /event_destinations/{id}
+      method: PATCH
+    delete:
+      path: /event_destinations/{id}
+      method: DELETE
+    schema:
+      ignores:
+        - target
 
   event_subscription:
     create:
@@ -271,9 +285,6 @@ resources:
       path: /vaults/{id}
       method: DELETE
 
-# Note: kubernetes_operator is NOT in the OpenAPI spec (undocumented API).
-# It remains fully hand-written.
-
 data_sources:
   agent_ingress:
     read:
@@ -300,7 +311,13 @@ data_sources:
       path: /endpoints/{id}
       method: GET
 
-  # event_destination: excluded (same reason as resource)
+  event_destination:
+    read:
+      path: /event_destinations/{id}
+      method: GET
+    schema:
+      ignores:
+        - target
 
   event_subscription:
     read:
