@@ -3,6 +3,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"net/url"
 
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
@@ -12,7 +13,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
 	ngrok "github.com/ngrok/ngrok-api-go/v9"
-	"github.com/ngrok/ngrok-api-go/v9/event_subscriptions"
 	"github.com/ngrok/terraform-provider-ngrok-v1.0/internal/resource_event_subscription"
 )
 
@@ -20,6 +20,49 @@ var (
 	_ resource.Resource                = &eventSubscriptionResource{}
 	_ resource.ResourceWithImportState = &eventSubscriptionResource{}
 )
+
+// Local API types that include the undocumented "fields" parameter.
+
+type eventSourceReplaceAPI struct {
+	Type   string   `json:"type,omitzero"`
+	Fields []string `json:"fields,omitempty"`
+}
+
+type eventSourceAPI struct {
+	Type   string   `json:"type,omitzero"`
+	Fields []string `json:"fields,omitempty"`
+	URI    string   `json:"uri,omitzero"`
+}
+
+type eventSubscriptionCreateAPI struct {
+	Metadata       string                  `json:"metadata,omitzero"`
+	Description    string                  `json:"description,omitzero"`
+	Sources        []eventSourceReplaceAPI `json:"sources,omitzero"`
+	DestinationIDs []string                `json:"destination_ids,omitzero"`
+}
+
+type eventSubscriptionUpdateAPI struct {
+	ID             string                  `json:"id,omitzero"`
+	Metadata       *string                 `json:"metadata,omitzero"`
+	Description    *string                 `json:"description,omitzero"`
+	Sources        []eventSourceReplaceAPI `json:"sources,omitzero"`
+	DestinationIDs []string                `json:"destination_ids,omitzero"`
+}
+
+type refAPI struct {
+	ID  string `json:"id,omitzero"`
+	URI string `json:"uri,omitzero"`
+}
+
+type eventSubscriptionAPI struct {
+	ID           string           `json:"id,omitzero"`
+	URI          string           `json:"uri,omitzero"`
+	CreatedAt    string           `json:"created_at,omitzero"`
+	Metadata     string           `json:"metadata,omitzero"`
+	Description  string           `json:"description,omitzero"`
+	Sources      []eventSourceAPI `json:"sources,omitzero"`
+	Destinations []refAPI         `json:"destinations,omitzero"`
+}
 
 type eventSubscriptionResourceModel struct {
 	ID             types.String `tfsdk:"id"`
@@ -32,7 +75,7 @@ type eventSubscriptionResourceModel struct {
 }
 
 type eventSubscriptionResource struct {
-	client *event_subscriptions.Client
+	client *ngrok.BaseClient
 }
 
 func NewEventSubscriptionResource() resource.Resource {
@@ -56,8 +99,9 @@ func (r *eventSubscriptionResource) Schema(ctx context.Context, _ resource.Schem
 		Required:    true,
 		NestedObject: schema.NestedAttributeObject{
 			Attributes: map[string]schema.Attribute{
-				"type": schema.StringAttribute{Description: "Type of event for which an event subscription will trigger.", Required: true},
-				"uri":  schema.StringAttribute{Description: "URI of the Event Source API resource.", Computed: true},
+				"type":   schema.StringAttribute{Description: "Type of event for which an event subscription will trigger.", Required: true},
+				"fields": schema.ListAttribute{Description: "The fields to include in events for this source.", Optional: true, ElementType: types.StringType},
+				"uri":    schema.StringAttribute{Description: "URI of the Event Source API resource.", Computed: true},
 			},
 		},
 	}
@@ -83,7 +127,7 @@ func (r *eventSubscriptionResource) Configure(_ context.Context, req resource.Co
 		)
 		return
 	}
-	r.client = event_subscriptions.NewClient(clientConfig)
+	r.client = ngrok.NewBaseClient(clientConfig)
 }
 
 func (r *eventSubscriptionResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
@@ -93,7 +137,7 @@ func (r *eventSubscriptionResource) Create(ctx context.Context, req resource.Cre
 		return
 	}
 
-	sources := expandEventSources(ctx, plan.Sources, &resp.Diagnostics)
+	sources := expandEventSourcesAPI(ctx, plan.Sources, &resp.Diagnostics)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -104,20 +148,21 @@ func (r *eventSubscriptionResource) Create(ctx context.Context, req resource.Cre
 		return
 	}
 
-	createReq := &ngrok.EventSubscriptionCreate{
+	createReq := &eventSubscriptionCreateAPI{
 		Description:    plan.Description.ValueString(),
 		Metadata:       plan.Metadata.ValueString(),
 		Sources:        sources,
 		DestinationIDs: expandStringList(destIDs),
 	}
 
-	sub, err := r.client.Create(ctx, createReq)
+	var sub eventSubscriptionAPI
+	err := r.client.Do(ctx, "POST", &url.URL{Path: "/event_subscriptions"}, createReq, &sub)
 	if err != nil {
 		resp.Diagnostics.AddError("Error creating event subscription", err.Error())
 		return
 	}
 
-	flattenEventSubscription(ctx, sub, &plan, &resp.Diagnostics)
+	flattenEventSubscriptionAPI(ctx, &sub, &plan, &resp.Diagnostics)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -131,7 +176,8 @@ func (r *eventSubscriptionResource) Read(ctx context.Context, req resource.ReadR
 		return
 	}
 
-	sub, err := r.client.Get(ctx, state.ID.ValueString())
+	var sub eventSubscriptionAPI
+	err := r.client.Do(ctx, "GET", &url.URL{Path: "/event_subscriptions/" + state.ID.ValueString()}, nil, &sub)
 	if err != nil {
 		if isNotFound(err) {
 			resp.State.RemoveResource(ctx)
@@ -141,7 +187,7 @@ func (r *eventSubscriptionResource) Read(ctx context.Context, req resource.ReadR
 		return
 	}
 
-	flattenEventSubscription(ctx, sub, &state, &resp.Diagnostics)
+	flattenEventSubscriptionAPI(ctx, &sub, &state, &resp.Diagnostics)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -161,7 +207,7 @@ func (r *eventSubscriptionResource) Update(ctx context.Context, req resource.Upd
 		return
 	}
 
-	sources := expandEventSources(ctx, plan.Sources, &resp.Diagnostics)
+	sources := expandEventSourcesAPI(ctx, plan.Sources, &resp.Diagnostics)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -172,21 +218,21 @@ func (r *eventSubscriptionResource) Update(ctx context.Context, req resource.Upd
 		return
 	}
 
-	updateReq := &ngrok.EventSubscriptionUpdate{
-		ID:             state.ID.ValueString(),
+	updateReq := &eventSubscriptionUpdateAPI{
 		Description:    stringPtrFromFramework(plan.Description),
 		Metadata:       stringPtrFromFramework(plan.Metadata),
 		Sources:        sources,
 		DestinationIDs: expandStringList(destIDs),
 	}
 
-	sub, err := r.client.Update(ctx, updateReq)
+	var sub eventSubscriptionAPI
+	err := r.client.Do(ctx, "PATCH", &url.URL{Path: "/event_subscriptions/" + state.ID.ValueString()}, updateReq, &sub)
 	if err != nil {
 		resp.Diagnostics.AddError("Error updating event subscription", err.Error())
 		return
 	}
 
-	flattenEventSubscription(ctx, sub, &plan, &resp.Diagnostics)
+	flattenEventSubscriptionAPI(ctx, &sub, &plan, &resp.Diagnostics)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -200,7 +246,7 @@ func (r *eventSubscriptionResource) Delete(ctx context.Context, req resource.Del
 		return
 	}
 
-	err := r.client.Delete(ctx, state.ID.ValueString())
+	err := r.client.Do(ctx, "DELETE", &url.URL{Path: "/event_subscriptions/" + state.ID.ValueString()}, nil, nil)
 	if err != nil {
 		if isNotFound(err) {
 			return
@@ -214,18 +260,20 @@ func (r *eventSubscriptionResource) ImportState(ctx context.Context, req resourc
 }
 
 type eventSourceModel struct {
-	Type types.String `tfsdk:"type"`
-	URI  types.String `tfsdk:"uri"`
+	Type   types.String `tfsdk:"type"`
+	Fields types.List   `tfsdk:"fields"`
+	URI    types.String `tfsdk:"uri"`
 }
 
 func eventSourceAttrTypes() map[string]attr.Type {
 	return map[string]attr.Type{
-		"type": types.StringType,
-		"uri":  types.StringType,
+		"type":   types.StringType,
+		"fields": types.ListType{ElemType: types.StringType},
+		"uri":    types.StringType,
 	}
 }
 
-func expandEventSources(ctx context.Context, list types.List, diags *diag.Diagnostics) []ngrok.EventSourceReplace {
+func expandEventSourcesAPI(ctx context.Context, list types.List, diags *diag.Diagnostics) []eventSourceReplaceAPI {
 	if list.IsNull() || list.IsUnknown() {
 		return nil
 	}
@@ -236,25 +284,40 @@ func expandEventSources(ctx context.Context, list types.List, diags *diag.Diagno
 		return nil
 	}
 
-	sources := make([]ngrok.EventSourceReplace, len(models))
+	sources := make([]eventSourceReplaceAPI, len(models))
 	for i, m := range models {
-		sources[i] = ngrok.EventSourceReplace{
+		src := eventSourceReplaceAPI{
 			Type: m.Type.ValueString(),
 		}
+		if !m.Fields.IsNull() && !m.Fields.IsUnknown() {
+			var fields []types.String
+			diags.Append(m.Fields.ElementsAs(ctx, &fields, false)...)
+			src.Fields = expandStringList(fields)
+		}
+		sources[i] = src
 	}
 	return sources
 }
 
-func flattenEventSources(ctx context.Context, sources []ngrok.EventSource, diags *diag.Diagnostics) types.List {
+func flattenEventSourcesAPI(ctx context.Context, sources []eventSourceAPI, diags *diag.Diagnostics) types.List {
 	if sources == nil {
 		return types.ListNull(types.ObjectType{AttrTypes: eventSourceAttrTypes()})
 	}
 
 	models := make([]eventSourceModel, len(sources))
 	for i, s := range sources {
+		var fields types.List
+		if len(s.Fields) > 0 {
+			f, d := types.ListValueFrom(ctx, types.StringType, s.Fields)
+			diags.Append(d...)
+			fields = f
+		} else {
+			fields = types.ListNull(types.StringType)
+		}
 		models[i] = eventSourceModel{
-			Type: types.StringValue(s.Type),
-			URI:  types.StringValue(s.URI),
+			Type:   types.StringValue(s.Type),
+			Fields: fields,
+			URI:    types.StringValue(s.URI),
 		}
 	}
 
@@ -263,15 +326,19 @@ func flattenEventSources(ctx context.Context, sources []ngrok.EventSource, diags
 	return list
 }
 
-func flattenEventSubscription(ctx context.Context, sub *ngrok.EventSubscription, model *eventSubscriptionResourceModel, diags *diag.Diagnostics) {
+func flattenEventSubscriptionAPI(ctx context.Context, sub *eventSubscriptionAPI, model *eventSubscriptionResourceModel, diags *diag.Diagnostics) {
 	model.ID = types.StringValue(sub.ID)
 	model.Description = types.StringValue(sub.Description)
 	model.Metadata = types.StringValue(sub.Metadata)
 	model.URI = types.StringValue(sub.URI)
 	model.CreatedAt = types.StringValue(sub.CreatedAt)
-	model.Sources = flattenEventSources(ctx, sub.Sources, diags)
+	model.Sources = flattenEventSourcesAPI(ctx, sub.Sources, diags)
 
-	destIDs, d := types.ListValueFrom(ctx, types.StringType, flattenRefList(sub.Destinations))
+	ids := make([]string, len(sub.Destinations))
+	for i, d := range sub.Destinations {
+		ids[i] = d.ID
+	}
+	destIDs, d := types.ListValueFrom(ctx, types.StringType, ids)
 	diags.Append(d...)
 	model.DestinationIDs = destIDs
 }

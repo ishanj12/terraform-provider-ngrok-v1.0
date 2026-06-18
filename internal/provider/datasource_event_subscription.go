@@ -9,8 +9,9 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
+	"net/url"
+
 	ngrok "github.com/ngrok/ngrok-api-go/v9"
-	"github.com/ngrok/ngrok-api-go/v9/event_subscriptions"
 	"github.com/ngrok/terraform-provider-ngrok-v1.0/internal/datasource_event_subscription"
 )
 
@@ -27,7 +28,7 @@ type eventSubscriptionDataSourceModel struct {
 }
 
 type eventSubscriptionDataSource struct {
-	client *event_subscriptions.Client
+	client *ngrok.BaseClient
 }
 
 func NewEventSubscriptionDataSource() datasource.DataSource {
@@ -60,6 +61,11 @@ func (d *eventSubscriptionDataSource) Schema(ctx context.Context, _ datasource.S
 					Description: "Type of event for which an event subscription will trigger.",
 					Computed:    true,
 				},
+				"fields": schema.ListAttribute{
+					Description: "The fields included in events for this source.",
+					Computed:    true,
+					ElementType: types.StringType,
+				},
 				"uri": schema.StringAttribute{
 					Description: "URI of the Event Source API resource.",
 					Computed:    true,
@@ -81,7 +87,7 @@ func (d *eventSubscriptionDataSource) Configure(_ context.Context, req datasourc
 		)
 		return
 	}
-	d.client = event_subscriptions.NewClient(clientConfig)
+	d.client = ngrok.NewBaseClient(clientConfig)
 }
 
 func (d *eventSubscriptionDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
@@ -91,29 +97,34 @@ func (d *eventSubscriptionDataSource) Read(ctx context.Context, req datasource.R
 		return
 	}
 
-	sub, err := d.client.Get(ctx, config.ID.ValueString())
+	var sub eventSubscriptionAPI
+	err := d.client.Do(ctx, "GET", &url.URL{Path: "/event_subscriptions/" + config.ID.ValueString()}, nil, &sub)
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading event subscription", err.Error())
 		return
 	}
 
 	var model eventSubscriptionDataSourceModel
-	flattenEventSubscriptionDataSource(ctx, sub, &model, &resp.Diagnostics)
+	flattenEventSubscriptionDataSource(ctx, &sub, &model, &resp.Diagnostics)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, &model)...)
 }
 
-func flattenEventSubscriptionDataSource(ctx context.Context, sub *ngrok.EventSubscription, model *eventSubscriptionDataSourceModel, diags *diag.Diagnostics) {
+func flattenEventSubscriptionDataSource(ctx context.Context, sub *eventSubscriptionAPI, model *eventSubscriptionDataSourceModel, diags *diag.Diagnostics) {
 	model.ID = types.StringValue(sub.ID)
 	model.Description = types.StringValue(sub.Description)
 	model.Metadata = types.StringValue(sub.Metadata)
 	model.URI = types.StringValue(sub.URI)
 	model.CreatedAt = types.StringValue(sub.CreatedAt)
-	model.Sources = flattenEventSources(ctx, sub.Sources, diags)
+	model.Sources = flattenEventSourcesAPI(ctx, sub.Sources, diags)
 
-	destIDs, d := types.ListValueFrom(ctx, types.StringType, flattenRefList(sub.Destinations))
-	diags.Append(d...)
+	ids := make([]string, len(sub.Destinations))
+	for i, d := range sub.Destinations {
+		ids[i] = d.ID
+	}
+	destIDs, dd := types.ListValueFrom(ctx, types.StringType, ids)
+	diags.Append(dd...)
 	model.DestinationIDs = destIDs
 }
