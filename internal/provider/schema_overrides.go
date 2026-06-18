@@ -113,8 +113,6 @@ var (
 	requiresReplaceList      = listplanmodifier.RequiresReplace
 	useStateForUnknownInt64  = int64planmodifier.UseStateForUnknown
 	requiresReplaceInt64     = int64planmodifier.RequiresReplace
-	useStateForUnknownMap    = mapplanmodifier.UseStateForUnknown
 	requiresReplaceMap       = mapplanmodifier.RequiresReplace
 	useStateForUnknownObject = objectplanmodifier.UseStateForUnknown
-	requiresReplaceObject    = objectplanmodifier.RequiresReplace
 )

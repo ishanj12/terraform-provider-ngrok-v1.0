@@ -19,14 +19,14 @@ var (
 )
 
 type sshCredentialResourceModel struct {
-	ID          types.String   `tfsdk:"id"`
-	URI         types.String   `tfsdk:"uri"`
-	CreatedAt   types.String   `tfsdk:"created_at"`
-	Description types.String   `tfsdk:"description"`
-	Metadata    types.String   `tfsdk:"metadata"`
-	PublicKey   types.String   `tfsdk:"public_key"`
-	ACL         types.List     `tfsdk:"acl"`
-	OwnerID     types.String   `tfsdk:"owner_id"`
+	ID          types.String `tfsdk:"id"`
+	URI         types.String `tfsdk:"uri"`
+	CreatedAt   types.String `tfsdk:"created_at"`
+	Description types.String `tfsdk:"description"`
+	Metadata    types.String `tfsdk:"metadata"`
+	PublicKey   types.String `tfsdk:"public_key"`
+	ACL         types.List   `tfsdk:"acl"`
+	OwnerID     types.String `tfsdk:"owner_id"`
 }
 
 type sshCredentialResource struct {

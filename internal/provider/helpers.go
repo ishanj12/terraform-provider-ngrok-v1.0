@@ -43,15 +43,6 @@ func flattenRef(ref *ngrok.Ref) string {
 	return ref.ID
 }
 
-// expandRef converts a types.String to an ngrok.Ref pointer, returning nil for
-// null/unknown/empty values.
-func expandRef(v types.String) *ngrok.Ref {
-	if v.IsNull() || v.IsUnknown() || v.ValueString() == "" {
-		return nil
-	}
-	return &ngrok.Ref{ID: v.ValueString()}
-}
-
 // flattenStringList converts a slice of strings to a types.List of StringType.
 func flattenStringList(vals []string) []types.String {
 	if vals == nil {

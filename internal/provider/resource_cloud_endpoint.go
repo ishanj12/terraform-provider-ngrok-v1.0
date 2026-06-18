@@ -83,8 +83,8 @@ func (r *cloudEndpointResource) Schema(ctx context.Context, _ resource.SchemaReq
 
 	// Override type to be Computed only (generated has it as Required)
 	attrs["type"] = schema.StringAttribute{
-		Description: "The type of endpoint. Always \"cloud\" for cloud endpoints.",
-		Computed:    true,
+		Description:   "The type of endpoint. Always \"cloud\" for cloud endpoints.",
+		Computed:      true,
 		PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
 	}
 

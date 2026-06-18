@@ -1,6 +1,9 @@
 # Binary
 terraform-provider-ngrok
 
+# Release artifacts
+dist/
+
 # Test manual
 test-manual/
 

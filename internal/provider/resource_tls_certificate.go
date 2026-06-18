@@ -22,28 +22,28 @@ var (
 )
 
 type tlsCertificateResourceModel struct {
-	ID                        types.String   `tfsdk:"id"`
-	URI                       types.String   `tfsdk:"uri"`
-	CreatedAt                 types.String   `tfsdk:"created_at"`
-	Description               types.String   `tfsdk:"description"`
-	Metadata                  types.String   `tfsdk:"metadata"`
-	CertificatePEM            types.String   `tfsdk:"certificate_pem"`
-	PrivateKeyPEM             types.String   `tfsdk:"private_key_pem"`
-	SubjectCommonName         types.String   `tfsdk:"subject_common_name"`
-	SubjectAlternativeNames   types.Object   `tfsdk:"subject_alternative_names"`
-	IssuedAt                  types.String   `tfsdk:"issued_at"`
-	NotBefore                 types.String   `tfsdk:"not_before"`
-	NotAfter                  types.String   `tfsdk:"not_after"`
-	KeyUsages                 types.List     `tfsdk:"key_usages"`
-	ExtendedKeyUsages         types.List     `tfsdk:"extended_key_usages"`
-	PrivateKeyType            types.String   `tfsdk:"private_key_type"`
-	IssuerCommonName          types.String   `tfsdk:"issuer_common_name"`
-	SerialNumber              types.String   `tfsdk:"serial_number"`
-	SubjectOrganization       types.String   `tfsdk:"subject_organization"`
-	SubjectOrganizationalUnit types.String   `tfsdk:"subject_organizational_unit"`
-	SubjectLocality           types.String   `tfsdk:"subject_locality"`
-	SubjectProvince           types.String   `tfsdk:"subject_province"`
-	SubjectCountry            types.String   `tfsdk:"subject_country"`
+	ID                        types.String `tfsdk:"id"`
+	URI                       types.String `tfsdk:"uri"`
+	CreatedAt                 types.String `tfsdk:"created_at"`
+	Description               types.String `tfsdk:"description"`
+	Metadata                  types.String `tfsdk:"metadata"`
+	CertificatePEM            types.String `tfsdk:"certificate_pem"`
+	PrivateKeyPEM             types.String `tfsdk:"private_key_pem"`
+	SubjectCommonName         types.String `tfsdk:"subject_common_name"`
+	SubjectAlternativeNames   types.Object `tfsdk:"subject_alternative_names"`
+	IssuedAt                  types.String `tfsdk:"issued_at"`
+	NotBefore                 types.String `tfsdk:"not_before"`
+	NotAfter                  types.String `tfsdk:"not_after"`
+	KeyUsages                 types.List   `tfsdk:"key_usages"`
+	ExtendedKeyUsages         types.List   `tfsdk:"extended_key_usages"`
+	PrivateKeyType            types.String `tfsdk:"private_key_type"`
+	IssuerCommonName          types.String `tfsdk:"issuer_common_name"`
+	SerialNumber              types.String `tfsdk:"serial_number"`
+	SubjectOrganization       types.String `tfsdk:"subject_organization"`
+	SubjectOrganizationalUnit types.String `tfsdk:"subject_organizational_unit"`
+	SubjectLocality           types.String `tfsdk:"subject_locality"`
+	SubjectProvince           types.String `tfsdk:"subject_province"`
+	SubjectCountry            types.String `tfsdk:"subject_country"`
 }
 
 type tlsCertificateResource struct {

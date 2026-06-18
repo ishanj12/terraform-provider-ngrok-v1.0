@@ -19,14 +19,14 @@ var (
 )
 
 type credentialResourceModel struct {
-	ID          types.String   `tfsdk:"id"`
-	URI         types.String   `tfsdk:"uri"`
-	CreatedAt   types.String   `tfsdk:"created_at"`
-	Description types.String   `tfsdk:"description"`
-	Metadata    types.String   `tfsdk:"metadata"`
-	Token       types.String   `tfsdk:"token"`
-	ACL         types.List     `tfsdk:"acl"`
-	OwnerID     types.String   `tfsdk:"owner_id"`
+	ID          types.String `tfsdk:"id"`
+	URI         types.String `tfsdk:"uri"`
+	CreatedAt   types.String `tfsdk:"created_at"`
+	Description types.String `tfsdk:"description"`
+	Metadata    types.String `tfsdk:"metadata"`
+	Token       types.String `tfsdk:"token"`
+	ACL         types.List   `tfsdk:"acl"`
+	OwnerID     types.String `tfsdk:"owner_id"`
 }
 
 type credentialResource struct {

@@ -25,18 +25,18 @@ var (
 )
 
 type reservedDomainResourceModel struct {
-	ID                          types.String   `tfsdk:"id"`
-	Domain                      types.String   `tfsdk:"domain"`
-	Region                      types.String   `tfsdk:"region"`
-	Description                 types.String   `tfsdk:"description"`
-	Metadata                    types.String   `tfsdk:"metadata"`
-	CertificateID               types.String   `tfsdk:"certificate_id"`
-	CertificateManagementPolicy types.Object   `tfsdk:"certificate_management_policy"`
-	CNAMETarget                 types.String   `tfsdk:"cname_target"`
-	ACMEChallengeCNAMETarget    types.String   `tfsdk:"acme_challenge_cname_target"`
-	ResolvesTo                  types.List     `tfsdk:"resolves_to"`
-	URI                         types.String   `tfsdk:"uri"`
-	CreatedAt                   types.String   `tfsdk:"created_at"`
+	ID                          types.String `tfsdk:"id"`
+	Domain                      types.String `tfsdk:"domain"`
+	Region                      types.String `tfsdk:"region"`
+	Description                 types.String `tfsdk:"description"`
+	Metadata                    types.String `tfsdk:"metadata"`
+	CertificateID               types.String `tfsdk:"certificate_id"`
+	CertificateManagementPolicy types.Object `tfsdk:"certificate_management_policy"`
+	CNAMETarget                 types.String `tfsdk:"cname_target"`
+	ACMEChallengeCNAMETarget    types.String `tfsdk:"acme_challenge_cname_target"`
+	ResolvesTo                  types.List   `tfsdk:"resolves_to"`
+	URI                         types.String `tfsdk:"uri"`
+	CreatedAt                   types.String `tfsdk:"created_at"`
 }
 
 type reservedDomainResource struct {

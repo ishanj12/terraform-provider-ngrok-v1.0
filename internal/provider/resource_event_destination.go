@@ -91,7 +91,7 @@ func (r *eventDestinationResource) Schema(ctx context.Context, _ resource.Schema
 				Description: "Configuration used to send events to Amazon Kinesis Data Firehose.",
 				Optional:    true,
 				Attributes: map[string]schema.Attribute{
-					"auth":               awsAuthSchema(),
+					"auth":                awsAuthSchema(),
 					"delivery_stream_arn": schema.StringAttribute{Description: "An Amazon Resource Name specifying the Firehose delivery stream.", Required: true},
 				},
 			},
@@ -125,11 +125,11 @@ func (r *eventDestinationResource) Schema(ctx context.Context, _ resource.Schema
 				Description: "Configuration used to send events to Azure Logs Ingestion.",
 				Optional:    true,
 				Attributes: map[string]schema.Attribute{
-					"tenant_id":                  schema.StringAttribute{Description: "Tenant ID for the Azure account.", Required: true},
-					"client_id":                  schema.StringAttribute{Description: "Client ID for the application client.", Required: true},
-					"client_secret":              schema.StringAttribute{Description: "Client Secret for the application client.", Required: true, Sensitive: true},
-					"logs_ingestion_uri":         schema.StringAttribute{Description: "Data collection endpoint logs ingestion URI.", Required: true},
-					"data_collection_rule_id":    schema.StringAttribute{Description: "Data collection rule immutable ID.", Required: true},
+					"tenant_id":                   schema.StringAttribute{Description: "Tenant ID for the Azure account.", Required: true},
+					"client_id":                   schema.StringAttribute{Description: "Client ID for the application client.", Required: true},
+					"client_secret":               schema.StringAttribute{Description: "Client Secret for the application client.", Required: true, Sensitive: true},
+					"logs_ingestion_uri":          schema.StringAttribute{Description: "Data collection endpoint logs ingestion URI.", Required: true},
+					"data_collection_rule_id":     schema.StringAttribute{Description: "Data collection rule immutable ID.", Required: true},
 					"data_collection_stream_name": schema.StringAttribute{Description: "Data collection stream name to use as destination.", Required: true},
 				},
 			},
@@ -301,7 +301,7 @@ type awsCredsModel struct {
 }
 
 type firehoseModel struct {
-	Auth             types.Object `tfsdk:"auth"`
+	Auth              types.Object `tfsdk:"auth"`
 	DeliveryStreamARN types.String `tfsdk:"delivery_stream_arn"`
 }
 
@@ -353,7 +353,7 @@ func awsAuthAttrTypes() map[string]attr.Type {
 
 func firehoseAttrTypes() map[string]attr.Type {
 	return map[string]attr.Type{
-		"auth":               types.ObjectType{AttrTypes: awsAuthAttrTypes()},
+		"auth":                types.ObjectType{AttrTypes: awsAuthAttrTypes()},
 		"delivery_stream_arn": types.StringType,
 	}
 }
@@ -383,22 +383,22 @@ func datadogAttrTypes() map[string]attr.Type {
 
 func azureLogsIngestionAttrTypes() map[string]attr.Type {
 	return map[string]attr.Type{
-		"tenant_id":                  types.StringType,
-		"client_id":                  types.StringType,
-		"client_secret":              types.StringType,
-		"logs_ingestion_uri":         types.StringType,
-		"data_collection_rule_id":    types.StringType,
+		"tenant_id":                   types.StringType,
+		"client_id":                   types.StringType,
+		"client_secret":               types.StringType,
+		"logs_ingestion_uri":          types.StringType,
+		"data_collection_rule_id":     types.StringType,
 		"data_collection_stream_name": types.StringType,
 	}
 }
 
 func eventTargetAttrTypes() map[string]attr.Type {
 	return map[string]attr.Type{
-		"firehose":               types.ObjectType{AttrTypes: firehoseAttrTypes()},
-		"kinesis":                types.ObjectType{AttrTypes: kinesisAttrTypes()},
-		"cloudwatch_logs":        types.ObjectType{AttrTypes: cloudwatchLogsAttrTypes()},
-		"datadog":                types.ObjectType{AttrTypes: datadogAttrTypes()},
-		"azure_logs_ingestion":   types.ObjectType{AttrTypes: azureLogsIngestionAttrTypes()},
+		"firehose":             types.ObjectType{AttrTypes: firehoseAttrTypes()},
+		"kinesis":              types.ObjectType{AttrTypes: kinesisAttrTypes()},
+		"cloudwatch_logs":      types.ObjectType{AttrTypes: cloudwatchLogsAttrTypes()},
+		"datadog":              types.ObjectType{AttrTypes: datadogAttrTypes()},
+		"azure_logs_ingestion": types.ObjectType{AttrTypes: azureLogsIngestionAttrTypes()},
 	}
 }
 
@@ -598,7 +598,7 @@ func expandEventTarget(ctx context.Context, obj types.Object, diags *diag.Diagno
 		var fh firehoseModel
 		diags.Append(model.Firehose.As(ctx, &fh, basetypes.ObjectAsOptions{})...)
 		target.Firehose = &ngrok.EventTargetFirehose{
-			Auth:             expandAWSAuth(ctx, fh.Auth, diags),
+			Auth:              expandAWSAuth(ctx, fh.Auth, diags),
 			DeliveryStreamARN: fh.DeliveryStreamARN.ValueString(),
 		}
 	}

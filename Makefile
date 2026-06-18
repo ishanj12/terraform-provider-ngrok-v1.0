@@ -1,5 +1,10 @@
 default: build
 
+# Source of the ngrok OpenAPI spec. Override OPENAPI_REF to pull a specific
+# branch, tag, or commit SHA (e.g. `make update-openapi OPENAPI_REF=v1.2.3`).
+OPENAPI_REF ?= main
+OPENAPI_URL ?= https://raw.githubusercontent.com/ngrok/ngrok-openapi/$(OPENAPI_REF)/ngrok.yaml
+
 build:
 	go build -o terraform-provider-ngrok .
 
@@ -19,24 +24,32 @@ lint:
 generate:
 	go generate ./...
 
+# Codegen and docs tools are pinned in go.mod via `tool` directives and run
+# with `go tool` — no separate `go install` step or PATH wrangling required.
 codegen: codegen-spec codegen-framework
 
 codegen-spec:
-	~/go/bin/tfplugingen-openapi generate \
+	go tool tfplugingen-openapi generate \
 		--config codegen/generator_config.yml \
 		--output codegen/provider_code_spec.json \
 		codegen/openapi_spec.yaml
 
 codegen-framework:
-	~/go/bin/tfplugingen-framework generate all \
+	go tool tfplugingen-framework generate all \
 		--input codegen/provider_code_spec.json \
 		--output internal
 
+docs:
+	go tool tfplugindocs generate --provider-name ngrok
+
+docs-validate:
+	go tool tfplugindocs validate --provider-name ngrok
+
 update-openapi:
 	# Pull the latest apic-generated spec from the ngrok-openapi repo
-	cp ../ngrok-openapi/ngrok.yaml codegen/openapi_spec.yaml
+	curl -fsSL "$(OPENAPI_URL)" -o codegen/openapi_spec.yaml
 
 dev: install
 	@echo "Installed. Run 'rm -f test-manual/.terraform.lock.hcl && terraform -chdir=test-manual init' to test."
 
-.PHONY: build install test testacc lint generate codegen codegen-spec codegen-framework update-openapi dev
+.PHONY: build install test testacc lint generate codegen codegen-spec codegen-framework docs docs-validate update-openapi dev

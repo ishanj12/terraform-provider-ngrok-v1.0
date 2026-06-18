@@ -1,5 +1,10 @@
 version: 2
 
+# Decouple artifact naming from the repository/module directory name
+# (which carries a `-v1.0` suffix). The Terraform Registry expects assets
+# named terraform-provider-ngrok_<version>_<os>_<arch>.zip.
+project_name: terraform-provider-ngrok
+
 builds:
   - env:
       - CGO_ENABLED=0
@@ -18,7 +23,7 @@ builds:
     binary: "{{ .ProjectName }}_v{{ .Version }}"
 
 archives:
-  - format: zip
+  - formats: [zip]
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
 
 checksum:
@@ -37,6 +42,11 @@ signs:
       - "${artifact}"
 
 release:
+  # The Terraform Registry requires a manifest declaring the supported
+  # plugin protocol version alongside the release assets.
+  extra_files:
+    - glob: terraform-registry-manifest.json
+      name_template: "{{ .ProjectName }}_{{ .Version }}_manifest.json"
   draft: true
 
 changelog:

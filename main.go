@@ -1,4 +1,4 @@
-//go:generate go run github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs generate --provider-name ngrok
+//go:generate go tool tfplugindocs generate --provider-name ngrok
 
 package main
 
