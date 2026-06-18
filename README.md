@@ -57,7 +57,6 @@ Configure the API key via the `NGROK_API_KEY` environment variable or in the pro
 | `ngrok_ip_policy` | IP policy groups |
 | `ngrok_ip_policy_rule` | IP policy CIDR rules |
 | `ngrok_ip_restriction` | IP restrictions on API/dashboard/agent/endpoints |
-
 | `ngrok_reserved_addr` | Reserved TCP addresses |
 | `ngrok_reserved_domain` | Reserved domains |
 | `ngrok_secret` | Secrets stored in vaults |
